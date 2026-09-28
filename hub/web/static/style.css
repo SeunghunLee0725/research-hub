@@ -89,6 +89,10 @@ table.review { border-collapse: collapse; width: 100%; font-size: 14px; }
 .review th { color: var(--muted); font-weight: 600; font-size: 13px; position: sticky; top: 0; background: var(--panel); }
 .review td.img img { width: 160px; max-height: 160px; object-fit: contain; background: #000; border-radius: 4px; display: block; }
 .review tr.done { background: var(--ok-bg); }
-.review td.field label.choice { display: flex; margin: 2px 0; }
+.review td.field label.choice { display: inline-flex; margin: 2px; padding: 3px 7px; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 13px; cursor: pointer; }
+.review td.field label.choice:has(input:checked) { background: var(--run-bg); border-color: var(--run); color: var(--run); }
+.review td.field label.choice input { display: none; }
+.review td.field { min-width: 140px; }
 .review input[type=text] { width: 100%; min-width: 120px; }
 .review .body { max-height: 200px; }
