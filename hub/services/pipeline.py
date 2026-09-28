@@ -51,8 +51,8 @@ class AnalyzeResult(_Strict):
 
 
 class Check(_Strict):
-    claim: str = Field(min_length=1, max_length=300)
-    recomputed: str = Field(max_length=300)
+    claim: str = Field(min_length=1, max_length=2000)
+    recomputed: str = Field(max_length=2000)
     match: bool
 
 
@@ -107,7 +107,9 @@ def validate_result(kind: str, result: dict | None) -> dict:
     try:
         return RESULT_MODELS[kind].model_validate(result or {}).model_dump()
     except ValidationError as exc:
-        raise ValueError(f"{kind} 결과 형식 오류: {exc.error_count()}개 항목") from exc
+        first = exc.errors()[0]
+        where = ".".join(str(part) for part in first["loc"]) or "(최상위)"
+        raise ValueError(f"{kind} 결과 형식 오류: {where} — {first['msg']} (총 {exc.error_count()}개)") from exc
 
 
 def run_spec(kind: str, result: dict, outputs: dict[str, dict]) -> dict | None:

@@ -157,3 +157,22 @@ def test_executor_dispatches_codex_steps(tmp_path):
     ex.wait_model(timeout=10)
     complete = [p for p in client.calls if p[0].endswith("/complete")]
     assert complete[0][1]["status"] == "succeeded" and complete[0][1]["result"]["verified"] is True
+
+
+def test_complete_is_retried_through_hub_outage(tmp_path):
+    from agent.client import HubError
+
+    class Flaky:
+        def __init__(self):
+            self.calls = 0
+
+        def post(self, path, payload):
+            self.calls += 1
+            if self.calls < 3:
+                raise HubError("down")
+            return {}
+
+    client = Flaky()
+    ex = Executor(client, tmp_path, claude_bin="c", model="m", use_systemd=False)
+    ex._complete(1, "succeeded", {}, None, delays=(0, 0, 0))
+    assert client.calls == 3

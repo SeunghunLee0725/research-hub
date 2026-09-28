@@ -1,6 +1,7 @@
 """Leases steps from the hub and runs them: one model step at a time, plus any number of detached jobs."""
 import logging
 import threading
+import time
 from pathlib import Path
 
 from agent.client import HubError
@@ -8,6 +9,7 @@ from agent.steps import claude_runner, codex_runner, run_job
 
 log = logging.getLogger("research-hub-agent")
 PROGRESS_EVERY_S = 60
+COMPLETE_RETRIES = (5, 15, 30, 60)
 
 
 def _last_line(text: str) -> str | None:
@@ -31,9 +33,16 @@ class Executor:
             log.warning("hub 요청 실패 %s: %s", path, exc)
             return None
 
-    def _complete(self, step_id: int, status: str, result: dict | None, error_class: str | None) -> None:
-        self._post(f"/agent/v1/steps/{step_id}/complete",
-                   {"status": status, "result": result, "error_class": error_class})
+    def _complete(self, step_id: int, status: str, result: dict | None, error_class: str | None,
+                  delays=COMPLETE_RETRIES) -> None:
+        """Results are expensive to reproduce, so keep trying through short hub restarts."""
+        payload = {"status": status, "result": result, "error_class": error_class}
+        for delay in (*delays, None):
+            if self._post(f"/agent/v1/steps/{step_id}/complete", payload) is not None:
+                return
+            if delay is not None:
+                time.sleep(delay)
+        log.error("step %s 완료 보고 실패 — 임대 만료 후 재시도됩니다", step_id)
 
     def _watch_jobs(self, now: float) -> None:
         for job in run_job.load_jobs(self._state):

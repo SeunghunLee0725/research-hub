@@ -59,3 +59,14 @@ def test_retry_decision():
     assert retry_decision("auth", attempt=1) == StepOutcome.PROBLEM
     assert retry_decision("refusal", attempt=1) == StepOutcome.PROBLEM
     assert retry_decision("exit_nonzero", attempt=1) == StepOutcome.RETRY
+
+
+def test_validation_error_names_the_field():
+    with pytest.raises(ValueError, match=r"result_card\.next_options"):
+        validate_result("report", {"result_card": {"conclusion": "c", "what_we_did": "w",
+                                                   "trust": {"verified": False}, "next_options": []}})
+
+
+def test_verify_accepts_long_claims():
+    long = "가" * 1500
+    assert validate_result("verify", {"verified": True, "checks": [{"claim": long, "recomputed": long, "match": True}]})
