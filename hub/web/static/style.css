@@ -156,3 +156,6 @@ body.mobile .review td.field::before { content: attr(data-label); display: block
 body.mobile .review td.field label.choice { padding: 8px 12px; font-size: 15px; margin: 3px; }
 body.mobile .metrics { font-size: 14px; }
 body.mobile code { white-space: pre-wrap; word-break: break-all; }
+body.mobile .footer { text-align: center; }
+.m-node { grid-template-columns: auto 1fr auto; }
+.m-node .m-logins { grid-column: 2 / 4; color: var(--muted); }

@@ -34,7 +34,7 @@
     <div class="m-node">
       <span class="dot {{ st[1] }}"></span><strong>{{ n.name }}</strong>
       <span class="small">GPU {% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span>{% else %}-{% endfor %}</span>
-      <span class="small">C<span class="dot {{ LOGIN[n.claude][1] }}"></span> X<span class="dot {{ LOGIN[n.codex][1] }}"></span></span>
+      <span class="small m-logins">Claude<span class="dot {{ LOGIN[n.claude][1] }}"></span> Codex<span class="dot {{ LOGIN[n.codex][1] }}"></span></span>
     </div>
   {% endfor %}
   </div>
