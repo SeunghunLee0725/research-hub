@@ -101,6 +101,11 @@ class AnalyzeResult(_Strict):
     criteria_met: bool | None = None
 
 
+class ReviewResult(_Strict):
+    summary: str = Field(min_length=1, max_length=2000)
+    answers: dict[str, dict[str, str]]
+
+
 class Check(_Strict):
     claim: str = Field(min_length=1, max_length=2000)
     recomputed: str = Field(max_length=2000)
@@ -150,7 +155,7 @@ class ReportResult(_Strict):
     result_card: ResultCard
 
 
-RESULT_MODELS = {"plan": PlanResult, "implement": ImplementResult, "run": RunResult,
+RESULT_MODELS = {"plan": PlanResult, "implement": ImplementResult, "run": RunResult, "review": ReviewResult,
                  "analyze": AnalyzeResult, "verify": VerifyResult, "report": ReportResult}
 
 

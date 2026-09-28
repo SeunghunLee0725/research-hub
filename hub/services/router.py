@@ -1,5 +1,5 @@
 """Chooses Claude or Codex for each step: role-based default, quota pressure, and error fallback."""
-PREFERRED = {"plan": "claude", "implement": "codex", "run": "none",
+PREFERRED = {"plan": "claude", "implement": "codex", "run": "none", "review": "claude",
              "analyze": "claude", "verify": "codex", "report": "claude"}
 PRESSURE_PCT = 85.0
 SWITCHABLE = {"session_limit", "auth", "refusal", "sandbox"}

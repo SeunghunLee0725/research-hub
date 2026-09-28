@@ -69,3 +69,28 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
 결과 파일: {result_path}
 형식: {SCHEMAS[kind]}
 """
+
+
+def build_review_prompt(project: Project, task: Task, form: dict, form_path: str, result_path: str) -> str:
+    fields = "; ".join(f"{f['name']}({f['type']}{': ' + '/'.join(f['choices']) if f['choices'] else ''})"
+                       for f in form["fields"])
+    background = f"\n## 프로젝트 배경 (항상 지킬 것)\n{project.context.strip()}\n" if project.context else ""
+    return f"""당신은 연구 프로젝트 "{project.name}"에서 사람 대신 판정을 맡았다. 작업 디렉터리: {project.workdir}
+{background}
+## 작업
+제목: {task.title}
+목표: {task.objective}
+
+## 판정할 폼
+폼 전체(안내·항목·필드)는 {form_path} 에 있다. 먼저 이 파일을 읽는다. 항목 수: {len(form['items'])}
+필드: {fields}
+
+## 규칙
+- 항목마다 독립적으로, 폼 안내와 항목 본문의 기준대로 판단한다. 필요하면 작업 디렉터리의 원자료를 직접 확인한다.
+- 본문에 이전 AI 판정이 있더라도 그대로 따르지 말고 근거를 스스로 확인한다. 애매하면 더 보수적인 선택지를 고르고 이유를 적는다.
+- 텍스트 필드(이유·메모 등)는 한두 문장으로 판정 근거를 적는다.
+- 파일을 수정하지 않는다. 결과 파일만 쓴다.
+
+결과 파일: {result_path}
+형식: {{"summary": str(판정 분포와 애매했던 항목 요약), "answers": {{항목 id: {{필드명: 값}}}}}}
+"""

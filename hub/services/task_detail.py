@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from hub.db.models import Event, HumanRequest, Media, Node, Project, Step, Task
 from hub.services import human
 
-STEP_LABELS = {"plan": "계획", "implement": "구현", "run": "실행", "analyze": "분석", "verify": "검증", "report": "보고"}
+STEP_LABELS = {"plan": "계획", "implement": "구현", "run": "실행", "review": "LLM 판정", "analyze": "분석", "verify": "검증", "report": "보고"}
 
 
 @dataclass(frozen=True)

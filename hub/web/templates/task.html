@@ -63,6 +63,10 @@
       <button name="action" value="submit">제출하고 계속</button>
     </div>
   </form>
+  <form method="post" action="/tasks/{{ t.id }}/delegate-ai" class="inline delegate">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="secondary small">AI에게 맡기기</button> <span class="muted small">입력한 내용은 버리고 LLM이 전부 판정합니다.</span>
+  </form>
   {% elif t.status in ('approved', 'running') %}
   <form class="inline" method="post" action="/tasks/{{ t.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary small">작업 중단</button></form>
   {% endif %}

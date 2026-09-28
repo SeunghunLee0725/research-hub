@@ -97,3 +97,13 @@ async def human_input(task_id: int, request: Request, db: Db):
     action = human.submit if data.get("action") == "submit" else human.save
     action(db, pending, answers, _now())
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+
+
+@router.post("/tasks/{task_id}/delegate-ai")
+def delegate_ai(task_id: int, request: Request, db: Db, csrf: Csrf):
+    task = _guard(request, db, task_id, csrf)
+    pending = human.open_request(db, task)
+    if pending is None or task.status != "waiting_human":
+        raise HTTPException(409, "입력을 기다리는 항목이 없습니다")
+    _run(human.delegate_to_ai, db, pending, _now())
+    return RedirectResponse(f"/tasks/{task_id}", status_code=303)

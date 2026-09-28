@@ -8,7 +8,9 @@ from hub.db.models import Event, Project, QuotaSnapshot, Step, Task
 from hub.services import human, router
 from hub.services import tasks as task_service
 from hub.services.pipeline import StepOutcome, enforce_trust, next_kind, retry_decision, run_spec
-from hub.services.prompts import build_prompt
+import json
+
+from hub.services.prompts import build_prompt, build_review_prompt
 
 SESSION_LIMIT_WAIT = timedelta(minutes=30)
 MODEL_TIMEOUT_MINUTES = 120
@@ -42,7 +44,14 @@ def _new_step(db: Session, task: Task, seq: int, kind: str, attempt: int, spec: 
     db.add(step)
     db.flush()
     files = human.submitted_files(db, task)
-    if kind == "run":
+    if kind == "review":
+        request = human.open_request(db, task)
+        form_path = f".research-hub/steps/{step.id}/form.json"
+        result_path = f"{project.workdir}/.research-hub/steps/{step.id}/result.json"
+        step.input = {"result_path": result_path, "timeout_minutes": MODEL_TIMEOUT_MINUTES,
+                      "files": {**files, form_path: json.dumps(request.form, ensure_ascii=False)},
+                      "prompt": build_review_prompt(project, task, request.form, form_path, result_path)}
+    elif kind == "run":
         step.input = {"command": spec["command"], "timeout_hours": spec["timeout_hours"],
                       "expected_artifacts": spec.get("expected_artifacts", []),
                       "success_marker": spec.get("success_marker"), "files": files}
@@ -77,6 +86,24 @@ def _problem(db: Session, task: Task, step: Step) -> None:
                  message=f"{step.kind} 단계 {step.attempt}회째 실패: {label}"))
 
 
+def _finish_review(db: Session, task: Task, step: Step, now: datetime, usage: dict[str, float | None]) -> bool:
+    """Accept the LLM's answers and continue the pipeline; on invalid answers mark the step failed (retried)."""
+    request = human.open_request(db, task)
+    try:
+        answers = human.validate_answers(request.form, step.output["answers"])
+    except ValueError as exc:
+        step.status, step.error_class = "failed", "bad_result"
+        db.add(Event(task_id=task.id, step_id=step.id, level="warn", message=f"LLM 판정 형식 오류: {exc}"[:500]))
+        return False
+    human.accept_ai_answers(db, request, answers, now)
+    requester = db.get(Step, request.step_id)
+    outputs = _outputs(db, task)
+    following = next_kind(requester.kind, requester.output, outputs)
+    if following is not None:
+        _new_step(db, task, step.seq + 1, following, 1, run_spec(requester.kind, requester.output, outputs), usage)
+    return True
+
+
 def _switch_model(db: Session, task: Task, step: Step) -> bool:
     """On model-specific failures, retry the same step once with the other model."""
     other = router.alternate(step.model)
@@ -97,10 +124,17 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
     step = _latest_step(db, task)
     if step is None or step.status in ("pending", "leased", "running"):
         return
+    if step.status == "succeeded" and step.kind == "review" and _finish_review(db, task, step, now, usage):
+        return
     if step.status == "succeeded":
         form = (step.output or {}).get("human_input")
-        if form and human.request_for_step(db, step) is None:
-            human.create_request(db, task, step, form)
+        request = human.request_for_step(db, step)
+        if form and request is None:
+            project = db.get(Project, task.project_id)
+            request = human.create_request(db, task, step, form, by_llm=project.auto_ai_review)
+        if request is not None and request.status == "pending":
+            if request.answered_by == "llm":
+                _new_step(db, task, step.seq + 1, "review", 1, None, usage)
             return
         outputs = _outputs(db, task)
         following = next_kind(step.kind, step.output, outputs)

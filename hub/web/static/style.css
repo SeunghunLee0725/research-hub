@@ -96,3 +96,4 @@ table.review { border-collapse: collapse; width: 100%; font-size: 14px; }
 .review td.field { min-width: 140px; }
 .review input[type=text] { width: 100%; min-width: 120px; }
 .review .body { max-height: 200px; }
+.delegate { display: block; margin: 8px 0 16px; }

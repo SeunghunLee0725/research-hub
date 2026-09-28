@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 TASK_STATUSES = ("proposed", "approved", "running", "waiting_human", "review", "problem", "done", "cancelled")
 TASK_FINISHED = ("done", "cancelled")
-STEP_KINDS = ("plan", "implement", "run", "analyze", "verify", "report")
+STEP_KINDS = ("plan", "implement", "run", "review", "analyze", "verify", "report")
 STEP_STATUSES = ("pending", "leased", "running", "succeeded", "failed", "lost")
 MODELS = ("claude", "codex", "none")
 PROVIDERS = ("claude", "codex")
@@ -46,6 +46,8 @@ class Project(Base):
     context: Mapped[str | None] = mapped_column(Text)
     node_selector: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'"))
     max_parallel: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    # When a step asks for human judgment, let an LLM fill the form instead of waiting for a person.
+    auto_ai_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -164,6 +166,7 @@ class HumanRequest(Base):
     """Work only a person can do (labels, judgments). The form lives here; answers go back to the node as a file."""
     __tablename__ = "human_requests"
     __table_args__ = (CheckConstraint(_in("status", ("pending", "submitted")), name="human_request_status_valid"),
+                      CheckConstraint(_in("answered_by", ("human", "llm")), name="human_request_answered_by_valid"),
                       UniqueConstraint("step_id"))
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
@@ -172,6 +175,7 @@ class HumanRequest(Base):
     answers_path: Mapped[str] = mapped_column(Text)
     answers: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'"))
     status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    answered_by: Mapped[str] = mapped_column(String(8), default="human", server_default="human")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
