@@ -35,8 +35,9 @@ ROLE = {
 
 def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dict], result_path: str) -> str:
     history = json.dumps(outputs, ensure_ascii=False, indent=1)[:12000] if outputs else "(없음)"
+    background = f"\n## 프로젝트 배경 (항상 지킬 것)\n{project.context.strip()}\n" if project.context else ""
     return f"""당신은 연구 프로젝트 "{project.name}"의 {kind} 단계를 맡았다. 작업 디렉터리: {project.workdir}
-
+{background}
 ## 작업
 제목: {task.title}
 목표: {task.objective}

@@ -40,6 +40,9 @@ def _parser() -> argparse.ArgumentParser:
     add_task.add_argument("title")
     add_task.add_argument("--objective", required=True)
     add_task.add_argument("--criteria")
+    context = sub.add_parser("set-context", help="프로젝트 배경 지시(모든 단계 프롬프트에 포함)를 파일에서 설정")
+    context.add_argument("slug")
+    context.add_argument("path")
     approve = sub.add_parser("approve-start", help="작업 시작 승인")
     approve.add_argument("task_id", type=int)
     return parser
@@ -54,7 +57,7 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> int
             return 2
         print(hash_password(password))
         return 0
-    name = args.slug if args.command in ("add-project", "add-task") else getattr(args, "name", None)
+    name = args.slug if args.command in ("add-project", "add-task", "set-context") else getattr(args, "name", None)
     if name is not None and not NAME_RE.fullmatch(name):
         print(f"이름 형식이 잘못됐습니다(소문자·숫자·하이픈): {name}", file=sys.stderr)
         return 2
@@ -86,6 +89,8 @@ def _run(db, args) -> int:
         return _add_task(db, args)
     if args.command == "approve-start":
         return _approve_start(db, args.task_id)
+    if args.command == "set-context":
+        return _set_context(db, args.slug, args.path)
     projects.create_project(db, args.slug, args.name, args.workdir, _labels(args.node_labels))
     print(f"프로젝트 등록: {args.slug}")
     return 0
@@ -122,3 +127,19 @@ def _approve_start(db, task_id: int) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _set_context(db, slug: str, path: str) -> int:
+    project = db.scalar(select(Project).where(Project.slug == slug))
+    if project is None:
+        print(f"프로젝트가 없습니다: {slug}", file=sys.stderr)
+        return 1
+    try:
+        text = open(path, encoding="utf-8").read()
+    except OSError as exc:
+        print(f"파일을 읽을 수 없습니다: {exc}", file=sys.stderr)
+        return 1
+    project.context = text[:20000]
+    db.commit()
+    print(f"배경 지시 설정: {slug} ({len(project.context)}자)")
+    return 0

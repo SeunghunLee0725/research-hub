@@ -43,6 +43,7 @@ class Project(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(200))
     workdir: Mapped[str] = mapped_column(Text)
+    context: Mapped[str | None] = mapped_column(Text)
     node_selector: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'"))
     max_parallel: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
