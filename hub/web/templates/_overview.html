@@ -1,3 +1,17 @@
+{% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem"]) | list %}
+{% if waiting %}
+<section>
+  <h2>확인 필요 · {{ waiting|length }}건</h2>
+  <div class="cards">
+  {% for p in waiting %}{% set st = STATUS[p.status] %}
+    <a class="card attention" href="/tasks/{{ p.task_id }}">
+      <div class="row"><strong>{{ p.name }}</strong><span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
+      <div>{{ p.task_title }}</div><div class="muted small">{{ st[1] }} →</div>
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
 <section>
   <h2>머신</h2>
   <div class="cards">

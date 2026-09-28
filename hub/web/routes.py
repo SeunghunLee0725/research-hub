@@ -14,6 +14,7 @@ from hub.security import verify_password
 from hub.services import task_detail
 from hub.services.overview import build_overview
 from hub.web import formatting
+from hub.web.actions import csrf_token
 from hub.web.auth import SESSION_KEY, client_key, is_admin
 
 router = APIRouter()
@@ -87,4 +88,4 @@ def task_page(task_id: int, request: Request, db: Db):
         raise HTTPException(404, "task not found")
     settings = request.app.state.settings
     return templates.TemplateResponse(request, "task.html", {"d": detail, "now": datetime.now(timezone.utc),
-                                                             "tz": settings.timezone})
+                                                             "tz": settings.timezone, "csrf": csrf_token(request)})

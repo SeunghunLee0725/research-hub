@@ -64,3 +64,14 @@ ol.steps, ul.events { padding-left: 20px; } .steps li, .events li { margin: 6px 
 .events li.error { color: var(--bad); } .events li.warn { color: var(--warn); }
 code { font-family: ui-monospace, Menlo, monospace; background: var(--idle-bg); padding: 1px 5px; border-radius: 4px;
   display: inline-block; max-width: 100%; overflow-x: auto; white-space: pre; }
+.actions { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.actions p { flex-basis: 100%; margin: 0 0 4px; }
+button.secondary { background: var(--idle-bg); color: var(--text); }
+button.small { font-size: 13px; padding: 4px 10px; }
+form.inline { display: inline; }
+.choose { display: grid; gap: 8px; margin-top: 12px; }
+.option { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; cursor: pointer; }
+.option input { margin-top: 4px; }
+a.card.attention { color: inherit; border-color: var(--warn); display: block; }
+a.card.attention:hover { text-decoration: none; background: var(--warn-bg); }
