@@ -1,0 +1,61 @@
+{% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem", "waiting_human"]) | list %}
+{% set running = view.projects | selectattr("status", "in", ["approved", "running"]) | list %}
+{% set idle = view.projects | selectattr("status", "equalto", "idle") | list %}
+
+<section>
+  <h2>확인 필요 <span class="count">{{ waiting|length }}</span></h2>
+  {% for p in waiting %}{% set st = STATUS[p.status] %}
+  <a class="m-card attention" href="/tasks/{{ p.task_id }}">
+    <div class="m-row"><span class="pill {{ st[2] }}">{{ st[0] }}</span><span class="muted small">{{ p.name }}</span></div>
+    <div class="m-title">{{ p.task_title }}</div>
+    <div class="m-action">{{ st[1] }} ›</div>
+  </a>
+  {% else %}<p class="m-empty">지금 확인할 것이 없습니다.</p>{% endfor %}
+</section>
+
+<section>
+  <h2>진행 중 <span class="count">{{ running|length }}</span></h2>
+  {% for p in running %}
+  <a class="m-card" href="/tasks/{{ p.task_id }}">
+    <div class="m-row"><strong>{{ p.name }}</strong><span class="muted small">{{ p.node or '' }}</span></div>
+    <div class="m-title">{{ p.task_title }}</div>
+    {% if p.step_kind %}<div class="m-step"><span class="pill run">{{ STEP[p.step_kind] }}</span>
+      <span class="small">{{ STEP_STATUS[p.step_status][0] }}</span>
+      {% if p.step_started_at %}<span class="muted small">· {{ ago(p.step_started_at, now) | replace(" 전", "") }}째</span>{% endif %}</div>{% endif %}
+    {% if p.last_event %}<div class="m-event">{{ p.last_event }}</div>{% endif %}
+  </a>
+  {% else %}<p class="m-empty">돌고 있는 작업이 없습니다.</p>{% endfor %}
+</section>
+
+<section>
+  <h2>머신</h2>
+  <div class="m-card">
+  {% for n in view.nodes %}{% set st = NODE[n.state] %}
+    <div class="m-node">
+      <span class="dot {{ st[1] }}"></span><strong>{{ n.name }}</strong>
+      <span class="small">GPU {% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span>{% else %}-{% endfor %}</span>
+      <span class="small">C<span class="dot {{ LOGIN[n.claude][1] }}"></span> X<span class="dot {{ LOGIN[n.codex][1] }}"></span></span>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+<section>
+  <h2>사용량</h2>
+  <div class="m-card">
+  {% for q in view.quotas %}{% for w in q.windows %}
+    <div class="m-meter"><span class="small">{{ 'Claude' if q.provider == 'claude' else 'Codex' }} {{ w.label }}</span>
+      <span class="bar"><span class="fill {{ pct_level(w.used_percent) }}" style="width: {{ w.used_percent }}%"></span></span>
+      <span class="small value">{{ w.used_percent|round|int }}%</span></div>
+  {% endfor %}{% else %}<p class="m-empty">정보 없음</p>{% endfor %}
+  </div>
+</section>
+
+{% if idle %}
+<section>
+  <details class="m-idle"><summary>쉬는 프로젝트 {{ idle|length }}개</summary>
+    {% for p in idle %}<a class="m-link" href="/projects/{{ p.slug }}">{{ p.name }} ›</a>{% endfor %}
+  </details>
+</section>
+{% endif %}
+<p class="m-foot"><a href="/projects/new">+ 새 프로젝트</a> · {{ local_time(now, tz) }} 기준</p>

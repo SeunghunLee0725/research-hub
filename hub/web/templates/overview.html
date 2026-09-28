@@ -4,5 +4,6 @@
 {% endblock %}
 {% block main %}
 <div id="overview">{% include "_overview.html" %}</div>
+<p class="muted small footer">{% if is_mobile(request) %}<a href="/?view=desktop">PC 화면으로 보기</a>{% else %}<a href="/?view=mobile">모바일 화면으로 보기</a>{% endif %}</p>
 {% endblock %}
 {% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

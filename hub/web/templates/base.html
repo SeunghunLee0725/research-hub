@@ -6,7 +6,7 @@
   <title>Research Hub</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body{% if is_mobile(request) %} class="mobile"{% endif %}>
   <header class="top">
     <span class="brand">Research Hub</span>
     {% block nav %}{% endblock %}

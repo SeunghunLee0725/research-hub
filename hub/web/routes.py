@@ -16,12 +16,13 @@ from hub.services import task_detail
 from hub.services.overview import build_overview
 from hub.web import formatting
 from hub.web.actions import csrf_token
+from hub.web.viewmode import is_mobile, remember_choice
 from hub.web.auth import SESSION_KEY, client_key, is_admin
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 templates.env.globals.update(
-    ago=formatting.ago, by_priority=formatting.by_priority, local_time=formatting.local_time, pct_level=formatting.pct_level,
+    ago=formatting.ago, by_priority=formatting.by_priority, is_mobile=is_mobile, local_time=formatting.local_time, pct_level=formatting.pct_level,
     STATUS=formatting.STATUS_LABELS, STEP=task_detail.STEP_LABELS, NODE=formatting.NODE_LABELS, STEP_STATUS=formatting.STEP_STATUS, LOGIN=formatting.LOGIN_LABELS,
 )
 Db = Annotated[Session, Depends(get_db)]
@@ -70,6 +71,7 @@ def logout(request: Request):
 def overview(request: Request, db: Db):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=303)
+    remember_choice(request)
     return templates.TemplateResponse(request, "overview.html", _overview_context(request, db))
 
 

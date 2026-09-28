@@ -110,3 +110,49 @@ table.files { width: 100%; border-collapse: collapse; margin-top: 10px; font-siz
 .files td, .files th { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
 .tasklist { padding-left: 18px; } .tasklist li { margin: 4px 0; }
 .header-actions { display: flex; justify-content: space-between; align-items: center; }
+
+/* ---------- mobile layout (Galaxy S25 ~360px) ---------- */
+body.mobile { font-size: 16px; }
+body.mobile main { padding: 12px 12px 32px; }
+body.mobile .top { position: sticky; top: 0; z-index: 5; padding: 10px 14px; }
+body.mobile h2 { font-size: 14px; margin: 18px 2px 8px; display: flex; align-items: center; gap: 6px; }
+body.mobile .count { background: var(--idle-bg); border-radius: 999px; padding: 0 8px; font-size: 12px; color: var(--text); }
+.m-card { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 10px; color: inherit; }
+a.m-card:hover { text-decoration: none; }
+a.m-card:active { background: var(--idle-bg); }
+.m-card.attention { border-color: var(--warn); border-width: 1.5px; }
+.m-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.m-title { font-size: 16px; font-weight: 600; margin: 6px 0 4px; line-height: 1.35; }
+.m-action { color: var(--warn); font-size: 14px; font-weight: 600; }
+.m-step { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.m-event { font-size: 13px; color: var(--muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-empty { color: var(--muted); font-size: 14px; margin: 4px 2px 10px; }
+.m-node { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; padding: 6px 0; }
+.m-node + .m-node { border-top: 1px solid var(--line); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); margin: 0 3px; vertical-align: middle; }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); } .dot.idle { background: var(--muted); }
+.m-meter { display: grid; grid-template-columns: 96px 1fr 38px; gap: 8px; align-items: center; padding: 5px 0; }
+.m-idle summary { color: var(--muted); font-size: 14px; padding: 6px 2px; }
+.m-link { display: block; padding: 10px 4px; border-bottom: 1px solid var(--line); color: inherit; }
+.m-foot { text-align: center; color: var(--muted); font-size: 13px; margin-top: 20px; }
+
+/* task / project pages on phones */
+body.mobile .title { font-size: 19px; line-height: 1.35; }
+body.mobile dl.wide { grid-template-columns: 1fr; gap: 2px; }
+body.mobile dl.wide dt { margin-top: 8px; }
+body.mobile button, body.mobile .actions button { min-height: 44px; padding: 10px 16px; font-size: 16px; }
+body.mobile .actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+body.mobile .actions form, body.mobile .actions button { width: 100%; }
+body.mobile .option { padding: 12px; }
+body.mobile input, body.mobile textarea, body.mobile select { font-size: 16px; }
+body.mobile .table-wrap { overflow: visible; }
+body.mobile table.review, body.mobile table.review tbody, body.mobile table.review tr, body.mobile table.review td { display: block; width: 100%; }
+body.mobile table.review thead { display: none; }
+body.mobile table.review tr { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 12px; background: var(--panel); }
+body.mobile table.review td { border: 0; padding: 4px 0; }
+body.mobile .review td.img img { width: 100%; max-height: 60vh; }
+body.mobile .review td.field::before { content: attr(data-label); display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+body.mobile .review td.field label.choice { padding: 8px 12px; font-size: 15px; margin: 3px; }
+body.mobile .metrics { font-size: 14px; }
+body.mobile code { white-space: pre-wrap; word-break: break-all; }

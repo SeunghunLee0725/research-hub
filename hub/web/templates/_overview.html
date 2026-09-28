@@ -1,3 +1,4 @@
+{% if is_mobile(request) %}{% include "_m_overview.html" %}{% else %}
 {% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem", "waiting_human"]) | list %}
 {% if waiting %}
 <section>
@@ -77,3 +78,5 @@
   </table>
 </section>
 <p class="muted small footer">{{ local_time(now, tz) }} 기준 · 10초마다 자동 갱신</p>
+
+{% endif %}

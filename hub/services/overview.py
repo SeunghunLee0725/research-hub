@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from hub.db.models import TASK_FINISHED, Event, Node, Project, QuotaSnapshot, Task
+from hub.db.models import TASK_FINISHED, Event, Node, Project, QuotaSnapshot, Step, Task
 
 QUOTA_LOOKBACK = timedelta(hours=24)
 
@@ -46,6 +46,9 @@ class ProjectView:
     task_id: int | None = None
     last_event: str | None = None
     last_event_at: datetime | None = None
+    step_kind: str | None = None
+    step_status: str | None = None
+    step_started_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -102,9 +105,11 @@ def _project_views(db: Session) -> tuple[ProjectView, ...]:
 
 def _project_view(db: Session, r) -> ProjectView:
     event = db.scalar(select(Event).where(Event.task_id == r.id).order_by(Event.id.desc()).limit(1)) if r.id else None
+    step = db.scalar(select(Step).where(Step.task_id == r.id).order_by(Step.id.desc()).limit(1)) if r.id else None
     return ProjectView(slug=r.slug, name=r.name, status=r.status or "idle", task_title=r.title, node=r.node,
                        updated_at=r.updated_at, task_id=r.id, last_event=event.message if event else None,
-                       last_event_at=event.at if event else None)
+                       last_event_at=event.at if event else None, step_kind=step.kind if step else None,
+                       step_status=step.status if step else None, step_started_at=step.started_at if step else None)
 
 
 def build_overview(db: Session, now: datetime, offline_after_seconds: int) -> Overview:

@@ -34,7 +34,7 @@
         <tr class="{{ 'done' if ans else '' }}">
           <td class="img">{% if item.image and d.media.get(item.image) %}<a href="/media/{{ d.media[item.image] }}" target="_blank"><img src="/media/{{ d.media[item.image] }}" alt="{{ item.title }}" loading="lazy"></a>{% else %}<span class="muted small">이미지 없음</span>{% endif %}</td>
           <td class="label"><strong>{{ item.title }}</strong>{% if item.body %}<details class="small"><summary>상세</summary><div class="body">{{ item.body }}</div></details>{% endif %}</td>
-          {% for field in f.fields %}<td class="field">
+          {% for field in f.fields %}<td class="field" data-label="{{ field.label }}">
             {% if field.type == 'choice' %}
               {% for c in field.choices %}<label class="choice"><input type="radio" name="{{ item.id }}__{{ field.name }}" value="{{ c }}" {% if ans.get(field.name) == c %}checked{% endif %}> {{ c }}</label>{% endfor %}
             {% else %}<input type="text" name="{{ item.id }}__{{ field.name }}" value="{{ ans.get(field.name, '') }}" maxlength="2000">{% endif %}
