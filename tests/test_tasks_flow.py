@@ -59,9 +59,10 @@ def test_full_pipeline_to_review(db, world):
     task = _approved_task(db, project)
     results = {"plan": PLAN_OK, "run": {"exit_code": 0, "duration_s": 5, "log_tail": "ok"},
                "analyze": {"summary": "분석", "findings": ["f"], "criteria_met": True},
+               "verify": {"verified": True, "checks": [{"claim": "a", "recomputed": "1", "match": True}]},
                "report": {"result_card": CARD}}
     seen = []
-    for _ in range(6):
+    for _ in range(8):
         scheduler.tick(db, NOW)
         step = leasing.lease_step(db, dbb1, NOW)
         if step is None:
@@ -70,7 +71,7 @@ def test_full_pipeline_to_review(db, world):
         leasing.complete_step(db, step, dbb1, "succeeded", results[step.kind], None, NOW)
     scheduler.tick(db, NOW)
     db.refresh(task)
-    assert seen == ["plan", "run", "analyze", "report"]
+    assert seen == ["plan", "run", "analyze", "verify", "report"]
     assert task.status == "review" and task.result_card["conclusion"] == "c"
     assert tasks.pending_approval(db, task).kind == "result"
     run_step = db.query(Step).filter_by(task_id=task.id, kind="run").one()
@@ -91,16 +92,20 @@ def test_invalid_result_is_retried_then_problem(db, world):
     assert db.query(Event).filter_by(task_id=task.id, level="error").count() >= 1
 
 
-def test_session_limit_waits_without_consuming_attempts(db, world):
+def test_session_limit_on_both_models_waits(db, world):
     dbb1, _, project = world
     _approved_task(db, project)
     scheduler.tick(db, NOW)
     step = leasing.lease_step(db, dbb1, NOW)
     leasing.complete_step(db, step, dbb1, "failed", None, "session_limit", NOW)
     scheduler.tick(db, NOW)
+    switched = leasing.lease_step(db, dbb1, NOW)
+    assert switched.model == "codex" and switched.attempt == 2
+    leasing.complete_step(db, switched, dbb1, "failed", None, "session_limit", NOW)
+    scheduler.tick(db, NOW)
     assert leasing.lease_step(db, dbb1, NOW + timedelta(minutes=5)) is None
     retry = leasing.lease_step(db, dbb1, NOW + timedelta(minutes=31))
-    assert retry.kind == "plan" and retry.attempt == 1
+    assert retry.kind == "plan" and retry.attempt == 2
 
 
 def test_expired_lease_is_lost_and_retried(db, world):

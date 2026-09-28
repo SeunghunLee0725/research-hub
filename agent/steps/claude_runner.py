@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from agent.steps.result_file import prepare, read_result
+
 ALLOWED_TOOLS = "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
 PATTERNS = (
     ("session_limit", ("session limit", "usage limit", "hit your limit", "rate limit")),
@@ -37,9 +39,7 @@ def classify(returncode: int, stdout: str, stderr: str) -> str | None:
 
 
 def run_model_step(step: dict, claude_bin: str, model: str) -> tuple[str, dict | None, str | None]:
-    result_path = Path(step["result_path"])
-    result_path.unlink(missing_ok=True)  # never pick up a previous attempt's file
-    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path = prepare(step["result_path"])
     try:
         proc = subprocess.run(build_command(claude_bin, model), input=step["prompt"], cwd=step["workdir"],
                               capture_output=True, text=True, timeout=float(step["timeout_minutes"]) * 60,
@@ -51,11 +51,8 @@ def run_model_step(step: dict, claude_bin: str, model: str) -> tuple[str, dict |
     error = classify(proc.returncode, proc.stdout, proc.stderr)
     if error:
         return "failed", {"message": (proc.stdout or proc.stderr)[-1000:]}, error
-    try:
-        result = json.loads(result_path.read_text())
-    except (OSError, ValueError):
-        return "failed", None, "no_result"
-    if not isinstance(result, dict):
+    result = read_result(result_path)
+    if result is None:
         return "failed", None, "no_result"
     meta = _parse(proc.stdout) or {}
     return "succeeded", {**result, "_meta": {"cost_usd": meta.get("total_cost_usd"),

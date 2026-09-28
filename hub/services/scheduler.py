@@ -4,16 +4,19 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hub.db.models import Event, Project, Step, Task
+from hub.db.models import Event, Project, QuotaSnapshot, Step, Task
+from hub.services import router
 from hub.services import tasks as task_service
-from hub.services.pipeline import PIPELINE_MODELS, StepOutcome, next_kind, retry_decision, run_spec
+from hub.services.pipeline import StepOutcome, enforce_trust, next_kind, retry_decision, run_spec
 from hub.services.prompts import build_prompt
 
 SESSION_LIMIT_WAIT = timedelta(minutes=30)
 MODEL_TIMEOUT_MINUTES = 120
 ERROR_LABELS = {"timeout": "시간 초과", "no_result": "결과 파일 없음", "bad_result": "결과 형식 오류",
                 "lost": "노드 응답 끊김", "tool_error": "실행 오류", "exit_nonzero": "명령 실패",
-                "auth": "모델 로그인 문제", "refusal": "모델이 요청 거부", "session_limit": "사용량 한도"}
+                "auth": "모델 로그인 문제", "refusal": "모델이 요청 거부", "session_limit": "사용량 한도",
+                "sandbox": "Codex 샌드박스 오류"}
+QUOTA_FRESH = timedelta(hours=1)
 
 
 def _outputs(db: Session, task: Task) -> dict[str, dict]:
@@ -22,9 +25,20 @@ def _outputs(db: Session, task: Task) -> dict[str, dict]:
     return {s.kind: s.output for s in steps}
 
 
-def _new_step(db: Session, task: Task, seq: int, kind: str, attempt: int, spec: dict | None) -> Step:
+def quota_usage(db: Session, now: datetime) -> dict[str, float | None]:
+    latest = db.scalars(select(QuotaSnapshot).where(QuotaSnapshot.at >= now - QUOTA_FRESH)
+                        .order_by(QuotaSnapshot.provider, QuotaSnapshot.at.desc())).all()
+    windows: dict[str, list[dict]] = {}
+    for snap in latest:
+        windows.setdefault(snap.provider, snap.windows)
+    return router.usage_from_windows(windows)
+
+
+def _new_step(db: Session, task: Task, seq: int, kind: str, attempt: int, spec: dict | None,
+              usage: dict[str, float | None]) -> Step:
     project = db.get(Project, task.project_id)
-    step = Step(task_id=task.id, seq=seq, kind=kind, model=PIPELINE_MODELS[kind], attempt=attempt, input={})
+    step = Step(task_id=task.id, seq=seq, kind=kind, model=router.choose_model(kind, usage), attempt=attempt,
+                input={})
     db.add(step)
     db.flush()
     if kind == "run":
@@ -44,10 +58,10 @@ def _expire_leases(db: Session, now: datetime) -> None:
         db.add(Event(task_id=step.task_id, step_id=step.id, level="warn", message=f"{step.kind} 단계 응답 끊김"))
 
 
-def _start_approved(db: Session) -> None:
+def _start_approved(db: Session, usage: dict[str, float | None]) -> None:
     for task in db.scalars(select(Task).where(Task.status == "approved")):
         task.status = "running"
-        _new_step(db, task, 1, "plan", 1, None)
+        _new_step(db, task, 1, "plan", 1, None, usage)
 
 
 def _latest_step(db: Session, task: Task) -> Step | None:
@@ -62,7 +76,23 @@ def _problem(db: Session, task: Task, step: Step) -> None:
                  message=f"{step.kind} 단계 {step.attempt}회째 실패: {label}"))
 
 
-def _advance(db: Session, task: Task, now: datetime) -> None:
+def _switch_model(db: Session, task: Task, step: Step) -> bool:
+    """On model-specific failures, retry the same step once with the other model."""
+    other = router.alternate(step.model)
+    if step.error_class not in router.SWITCHABLE or other is None:
+        return False
+    tried = set(db.scalars(select(Step.model).where(Step.task_id == task.id, Step.seq == step.seq)))
+    if other in tried:
+        return False
+    db.add(Step(task_id=task.id, seq=step.seq, kind=step.kind, model=other, attempt=step.attempt + 1,
+                input=step.input))
+    label = ERROR_LABELS.get(step.error_class, step.error_class)
+    db.add(Event(task_id=task.id, step_id=step.id, level="warn",
+                 message=f"{step.kind} 단계 {step.model} {label} → {other}로 전환"))
+    return True
+
+
+def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | None]) -> None:
     step = _latest_step(db, task)
     if step is None or step.status in ("pending", "leased", "running"):
         return
@@ -70,11 +100,14 @@ def _advance(db: Session, task: Task, now: datetime) -> None:
         outputs = _outputs(db, task)
         following = next_kind(step.kind, step.output, outputs)
         if following is None:
-            task.status, task.result_card = "review", step.output["result_card"]
+            task.status = "review"
+            task.result_card = enforce_trust(step.output["result_card"], outputs.get("verify"))
             task_service.open_result_approval(db, task)
             db.add(Event(task_id=task.id, message="결과 도착 — 결과 승인 대기"))
         else:
-            _new_step(db, task, step.seq + 1, following, 1, run_spec(step.kind, step.output, outputs))
+            _new_step(db, task, step.seq + 1, following, 1, run_spec(step.kind, step.output, outputs), usage)
+        return
+    if _switch_model(db, task, step):
         return
     decision = retry_decision(step.error_class, step.attempt)
     if decision is StepOutcome.WAIT:
@@ -90,8 +123,9 @@ def _advance(db: Session, task: Task, now: datetime) -> None:
 
 def tick(db: Session, now: datetime) -> None:
     _expire_leases(db, now)
-    _start_approved(db)
+    usage = quota_usage(db, now)
+    _start_approved(db, usage)
     db.flush()
     for task in db.scalars(select(Task).where(Task.status == "running")).all():
-        _advance(db, task, now)
+        _advance(db, task, now, usage)
     db.commit()

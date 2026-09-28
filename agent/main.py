@@ -23,8 +23,12 @@ def _binary(name: str, home: Path) -> str:
     return str(local) if local.exists() else shutil.which(name) or name
 
 
+def _codex_bin(cfg, home: Path) -> str:
+    return cfg.codex_bin or _binary("codex", home)
+
+
 def _job(name: str, cfg, home: Path) -> list[tuple[str, dict]]:
-    claude_bin, codex_bin = _binary("claude", home), _binary("codex", home)
+    claude_bin, codex_bin = _binary("claude", home), _codex_bin(cfg, home)
     if name == "heartbeat":
         metrics = {**system.collect(cfg.disk_path), **gpu.collect()}
         return [("/agent/v1/heartbeat", {"agent_version": __version__, "hostname": socket.gethostname(),
@@ -37,8 +41,9 @@ def _job(name: str, cfg, home: Path) -> list[tuple[str, dict]]:
 
 def loop(cfg, home: Path) -> None:
     client, schedule = HubClient(cfg.hub_url, cfg.token), Schedule(INTERVALS)
-    executor = Executor(client, home / ".local/state/research-hub", _binary("claude", home), cfg.model) \
-        if cfg.execute else None
+    executor = Executor(client, home / ".local/state/research-hub", _binary("claude", home), cfg.model,
+                        codex_bin=_codex_bin(cfg, home), codex_model=cfg.codex_model,
+                        codex_sandbox=cfg.codex_sandbox) if cfg.execute else None
     while True:
         now = time.monotonic()
         if executor is not None:

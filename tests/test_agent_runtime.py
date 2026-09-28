@@ -79,3 +79,12 @@ def test_load_config_execution_options(tmp_path):
     cfg = load_config(env)
     assert (cfg.execute, cfg.model) == (False, "sonnet")
     assert load_config(tmp_path.joinpath("agent.env")).execute is False
+
+
+def test_load_config_codex_options(tmp_path):
+    env = tmp_path / "agent.env"
+    env.write_text("HUB_URL=http://x\nHUB_NODE_TOKEN=t\nAGENT_CODEX_BIN=/opt/codex\nAGENT_CODEX_MODEL=gpt-5.6-sol\n"
+                   "AGENT_CLAUDE_MODEL=opus\n")
+    cfg = load_config(env)
+    assert (cfg.codex_bin, cfg.codex_model, cfg.codex_sandbox, cfg.model) == \
+        ("/opt/codex", "gpt-5.6-sol", "workspace-write", "opus")

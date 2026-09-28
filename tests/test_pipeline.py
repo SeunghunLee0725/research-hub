@@ -24,9 +24,10 @@ def test_implement_uses_its_own_run_spec_or_the_plan_one():
     assert next_kind("implement", {"run": None}, {"plan": {"run": None}}) == "analyze"
 
 
-def test_run_then_analyze_then_report_then_done():
+def test_run_then_analyze_then_verify_then_report_then_done():
     assert next_kind("run", {}, {}) == "analyze"
-    assert next_kind("analyze", {}, {}) == "report"
+    assert next_kind("analyze", {}, {}) == "verify"
+    assert next_kind("verify", {}, {}) == "report"
     assert next_kind("report", {}, {}) is None
 
 

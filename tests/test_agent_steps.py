@@ -140,3 +140,20 @@ def test_executor_runs_model_step_in_background(tmp_path):
     ex.wait_model(timeout=10)
     complete = [p for p in client.calls if p[0].endswith("/complete")]
     assert complete[0][1]["status"] == "succeeded" and complete[0][1]["result"]["summary"] == "s"
+
+
+def test_executor_dispatches_codex_steps(tmp_path):
+    codex = _script(tmp_path, "codex", """
+        import json, os, sys
+        cwd = sys.argv[sys.argv.index("-C") + 1]
+        path = os.path.join(cwd, ".research-hub/steps/1/result.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        json.dump({"verified": True, "checks": []}, open(path, "w"))
+        """)
+    client = FakeClient([_step(tmp_path, model="codex", kind="verify")])
+    ex = Executor(client, tmp_path / "state", claude_bin="/nope", model="opus", use_systemd=False,
+                  codex_bin=codex, codex_model=None)
+    ex.tick(now=0)
+    ex.wait_model(timeout=10)
+    complete = [p for p in client.calls if p[0].endswith("/complete")]
+    assert complete[0][1]["status"] == "succeeded" and complete[0][1]["result"]["verified"] is True

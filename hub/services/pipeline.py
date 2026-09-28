@@ -1,9 +1,8 @@
 """Pure rules for how a task moves through its steps. No I/O here."""
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-PIPELINE_MODELS = {"plan": "claude", "implement": "claude", "run": "none", "analyze": "claude", "report": "claude"}
 RETRY_LIMIT = 3
 RETRYABLE = {"timeout", "no_result", "bad_result", "lost", "tool_error", "exit_nonzero"}
 WAITABLE = {"session_limit"}
@@ -51,6 +50,24 @@ class AnalyzeResult(_Strict):
     criteria_met: bool | None = None
 
 
+class Check(_Strict):
+    claim: str = Field(min_length=1, max_length=300)
+    recomputed: str = Field(max_length=300)
+    match: bool
+
+
+class VerifyResult(_Strict):
+    verified: bool
+    checks: list[Check] = Field(default_factory=list, max_length=30)
+    notes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        # "verified" only holds if at least one claim was recomputed and every check matched.
+        consistent = self.verified and bool(self.checks) and all(c.match for c in self.checks)
+        return self if consistent == self.verified else self.model_copy(update={"verified": consistent})
+
+
 class Metric(_Strict):
     name: str
     baseline: str | None = None
@@ -83,7 +100,7 @@ class ReportResult(_Strict):
 
 
 RESULT_MODELS = {"plan": PlanResult, "implement": ImplementResult, "run": RunResult,
-                 "analyze": AnalyzeResult, "report": ReportResult}
+                 "analyze": AnalyzeResult, "verify": VerifyResult, "report": ReportResult}
 
 
 def validate_result(kind: str, result: dict | None) -> dict:
@@ -107,7 +124,19 @@ def next_kind(kind: str, result: dict, outputs: dict[str, dict]) -> str | None:
         return "run" if result.get("run") else "analyze"
     if kind == "implement":
         return "run" if run_spec(kind, result, outputs) else "analyze"
-    return {"run": "analyze", "analyze": "report", "report": None}[kind]
+    return {"run": "analyze", "analyze": "verify", "verify": "report", "report": None}[kind]
+
+
+def enforce_trust(card: dict, verify: dict | None) -> dict:
+    """The report may not claim more trust than the independent verify step established."""
+    notes = list(card.get("trust", {}).get("notes", []))
+    if verify is None:
+        return {**card, "trust": {"verified": False, "notes": [*notes, "독립 검증 단계 결과 없음"]}}
+    mismatches = [f"불일치: {c['claim']} → 재계산 {c['recomputed']}" for c in verify["checks"] if not c["match"]]
+    extra = [n for n in mismatches if n not in notes]
+    if not verify["checks"]:
+        extra.append("검증 단계가 다시 계산한 수치가 없음")
+    return {**card, "trust": {"verified": bool(verify["verified"]), "notes": [*notes, *extra]}}
 
 
 def retry_decision(error_class: str | None, attempt: int) -> StepOutcome:

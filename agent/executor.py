@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 
 from agent.client import HubError
-from agent.steps import claude_runner, run_job
+from agent.steps import claude_runner, codex_runner, run_job
 
 log = logging.getLogger("research-hub-agent")
 PROGRESS_EVERY_S = 60
@@ -16,9 +16,11 @@ def _last_line(text: str) -> str | None:
 
 
 class Executor:
-    def __init__(self, client, state_dir: Path, claude_bin: str, model: str, use_systemd: bool = True):
+    def __init__(self, client, state_dir: Path, claude_bin: str, model: str, use_systemd: bool = True,
+                 codex_bin: str = "codex", codex_model: str | None = None, codex_sandbox: str = "workspace-write"):
         self._client, self._state = client, state_dir
         self._claude_bin, self._model, self._use_systemd = claude_bin, model, use_systemd
+        self._codex = (codex_bin, codex_model, codex_sandbox)
         self._model_thread: threading.Thread | None = None
         self._progress_at: dict[int, float] = {}
 
@@ -62,7 +64,10 @@ class Executor:
         pinger = threading.Thread(target=heartbeat, daemon=True)
         pinger.start()
         try:
-            status, result, error = claude_runner.run_model_step(step, self._claude_bin, self._model)
+            if step["model"] == "codex":
+                status, result, error = codex_runner.run_model_step(step, *self._codex)
+            else:
+                status, result, error = claude_runner.run_model_step(step, self._claude_bin, self._model)
         except Exception:  # report instead of silently dropping the step
             log.exception("model step %s crashed", step["id"])
             status, result, error = "failed", None, "tool_error"

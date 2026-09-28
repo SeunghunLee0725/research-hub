@@ -9,6 +9,7 @@ SCHEMAS = {
             '"success_marker": str|null} | null}',
     "implement": '{"summary": str, "changed_files": [str], "run": <plan과 같은 run 형식> | null}',
     "analyze": '{"summary": str, "findings": [str], "criteria_met": bool|null}',
+    "verify": '{"verified": bool, "checks": [{"claim": str, "recomputed": str, "match": bool}], "notes": [str]}',
     "report": '{"result_card": {"conclusion": str(한 문장, 300자 이내), "what_we_did": str(쉬운 말 2~3문장), '
               '"metrics": [{"name": str, "baseline": str|null, "result": str, "note": str}], '
               '"trust": {"verified": bool, "notes": [str]}, "limits": [str], '
@@ -22,8 +23,12 @@ ROLE = {
     "implement": "계획에 따라 코드를 수정하고 빠른 테스트로 확인한다. 긴 계산은 직접 돌리지 말고 run.command 로 넘긴다.",
     "analyze": "실행 결과(로그·산출물)를 원자료에서 직접 확인해 해석한다. 수치는 파일에서 읽은 값만 쓴다. "
                "성공 기준 충족 여부를 판단한다.",
+    "verify": "독립 검증자다. 앞 단계(분석)가 주장한 핵심 수치·사실마다, 분석 글을 믿지 말고 원자료(로그·결과 파일·데이터)에서 "
+              "직접 다시 계산하거나 읽어 확인한다. 항목마다 claim(주장), recomputed(내가 얻은 값), match 를 적는다. "
+              "확인할 수 없으면 match=false 와 이유를 notes 에. 결과 파일 외에는 아무것도 수정하지 않는다.",
     "report": "사용자가 1분 안에 이해할 결과 카드를 쓴다. 전문 용어·내부 식별자 없이 한국어로. "
-              "trust.verified 는 원자료로 수치를 다시 확인했을 때만 true. 한계는 숨기지 말 것. "
+              "trust.verified 는 검증(verify) 단계가 verified=true 일 때만 true 로 쓰고, 불일치 항목은 trust.notes 에 옮긴다. "
+              "한계는 숨기지 말 것. "
               "next_options 는 다음에 할 만한 작업 1~3개.",
 }
 
