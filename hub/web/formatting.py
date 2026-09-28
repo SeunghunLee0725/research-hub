@@ -7,6 +7,7 @@ STATUS_LABELS = {
     "approved": ("준비", "실행 대기열", "run"),
     "running": ("실행 중", "", "run"),
     "review": ("승인 대기", "결과 검토 필요", "wait"),
+    "waiting_human": ("사람 작업 필요", "웹에서 입력", "wait"),
     "problem": ("문제", "확인 필요", "bad"),
     "done": ("완료", "", "ok"),
     "cancelled": ("취소", "", "idle"),
@@ -41,3 +42,7 @@ def pct_level(value: float | None) -> str:
     if value is None:
         return "idle"
     return "bad" if value >= 85 else "warn" if value >= 60 else "ok"
+
+
+def by_priority(items: list[dict]) -> list[dict]:
+    return sorted(items, key=lambda item: item.get("priority") or 99)

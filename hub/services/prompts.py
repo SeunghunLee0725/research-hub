@@ -6,8 +6,9 @@ from hub.db.models import Project, Task
 SCHEMAS = {
     "plan": '{"summary": str, "approach": [str], "needs_implement": bool, '
             '"run": {"command": str, "timeout_hours": float, "expected_artifacts": [str], '
-            '"success_marker": str|null} | null}',
-    "implement": '{"summary": str, "changed_files": [str], "run": <plan과 같은 run 형식> | null}',
+            '"success_marker": str|null} | null, "human_input": <사람 입력 폼> | null}',
+    "implement": '{"summary": str, "changed_files": [str], "run": <plan과 같은 run 형식> | null, '
+                 '"human_input": <사람 입력 폼> | null}',
     "analyze": '{"summary": str, "findings": [str], "criteria_met": bool|null}',
     "verify": '{"verified": bool, "checks": [{"claim": str, "recomputed": str, "match": bool}], "notes": [str]}',
     "report": '{"result_card": {"conclusion": str(한 문장, 300자 이내), "what_we_did": str(쉬운 말 2~3문장), '
@@ -51,6 +52,12 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
 
 ## 규칙
 - 이 작업 하나에만 집중한다. 범위를 넓히지 않는다.
+- 사람의 판단·라벨·확인이 필요한 부분은 직접 채우지 말고, plan/implement 결과의 human_input 에 폼을 정의한다.
+  작업은 사람이 웹에서 답할 때까지 멈추고, 답은 answers_path 에 JSONL(한 줄에 {{"id": 항목 id, 필드명: 값}}, 답한 항목만)로
+  저장된 뒤 다음 단계가 시작된다. run 명령은 그 파일을 읽도록 작성한다. 폼 형식:
+  {{"instructions": str, "answers_path": 작업 디렉터리 기준 상대 경로, "fields": [{{"name": 소문자_이름, "label": str,
+  "type": "choice"|"text", "choices": [str]}}], "items": [{{"id": 영숫자 id, "title": str, "body": 사람이 판단할 내용
+  전체(질문·근거·AI 참고 판정 등), "priority": 1~9|null}}]}}
 - 비밀값(.env, 토큰)을 출력하거나 파일에 복사하지 않는다.
 - 되돌리기 어려운 조작(데이터 삭제, git push, 서비스 재시작)은 하지 않는다.
 - 끝나면 반드시 아래 경로에 JSON 하나를 쓴다. 다른 형식은 실패로 처리된다.

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from agent.client import HubError
 from agent.steps import claude_runner, codex_runner, run_job
+from agent.steps.files import write_step_files
 
 log = logging.getLogger("research-hub-agent")
 PROGRESS_EVERY_S = 60
@@ -98,6 +99,12 @@ class Executor:
         data = self._post("/agent/v1/lease", {})
         step = (data or {}).get("step")
         if not step:
+            return
+        try:
+            write_step_files(step["workdir"], step.get("files") or {})
+        except (OSError, ValueError) as exc:
+            log.warning("step files rejected: %s", exc)
+            self._complete(step["id"], "failed", {"message": str(exc)[:500]}, "tool_error")
             return
         if step["kind"] == "run":
             try:

@@ -53,12 +53,12 @@ def test_validate_report_result_card():
 
 
 def test_retry_decision():
-    assert retry_decision("timeout", attempt=1) == StepOutcome.RETRY
-    assert retry_decision("timeout", attempt=RETRY_LIMIT) == StepOutcome.PROBLEM
+    assert retry_decision("timeout", attempt=1, kind="plan") == StepOutcome.RETRY
+    assert retry_decision("timeout", attempt=RETRY_LIMIT, kind="plan") == StepOutcome.PROBLEM
     assert retry_decision("session_limit", attempt=5) == StepOutcome.WAIT
     assert retry_decision("auth", attempt=1) == StepOutcome.PROBLEM
     assert retry_decision("refusal", attempt=1) == StepOutcome.PROBLEM
-    assert retry_decision("exit_nonzero", attempt=1) == StepOutcome.RETRY
+    assert retry_decision("exit_nonzero", attempt=1, kind="run") == StepOutcome.PROBLEM
 
 
 def test_validation_error_names_the_field():

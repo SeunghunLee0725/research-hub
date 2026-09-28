@@ -1,4 +1,4 @@
-{% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem"]) | list %}
+{% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem", "waiting_human"]) | list %}
 {% if waiting %}
 <section>
   <h2>확인 필요 · {{ waiting|length }}건</h2>

@@ -31,13 +31,17 @@ class Alert:
 
 def _task_alerts(db: Session, base_url: str) -> list[Alert]:
     rows = db.execute(select(Task, Project.name).join(Project, Project.id == Task.project_id)
-                      .where(Task.status.in_(("proposed", "review", "problem")))).all()
+                      .where(Task.status.in_(("proposed", "review", "problem", "waiting_human")))).all()
     alerts = []
     for task, project in rows:
         link = f"{base_url}/tasks/{task.id}"
         if task.status == "proposed":
             alerts.append(Alert(f"task:{task.id}:start", "start",
                                 f"🟡 승인 필요 · {project}\n\"{task.title}\" 시작 승인을 기다립니다.\n{link}", task.id))
+        elif task.status == "waiting_human":
+            alerts.append(Alert(f"task:{task.id}:human:{task.updated_at.isoformat() if task.updated_at else ''}",
+                                "human", f"🟡 사람 작업 필요 · {project}\n\"{task.title}\"\n웹에서 입력해 주세요: {link}",
+                                task.id))
         elif task.status == "review":
             conclusion = (task.result_card or {}).get("conclusion", "")
             alerts.append(Alert(f"task:{task.id}:review", "review",

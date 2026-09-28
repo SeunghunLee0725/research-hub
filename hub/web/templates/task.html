@@ -18,6 +18,32 @@
     <form method="post" action="/tasks/{{ t.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button>재시도</button></form>
     <form method="post" action="/tasks/{{ t.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary">취소</button></form>
   </div>
+  {% elif t.status == 'waiting_human' and d.request %}{% set f = d.request.form %}{% set a = d.request.answers %}
+  <form class="card human" method="post" action="/tasks/{{ t.id }}/human-input">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <h2>사람 작업 필요</h2>
+    <p class="instructions">{{ f.instructions }}</p>
+    <p class="muted small">{{ a.values() | select | list | length }}/{{ f['items'] | length }}개 입력됨 · 중간 저장 후 나중에 이어서 할 수 있습니다.</p>
+    {% for item in by_priority(f['items']) %}{% set ans = a.get(item.id, {}) %}
+    <details class="item" {% if loop.first or not ans %}open{% endif %}>
+      <summary><strong>{{ item.title }}</strong>{% if item.priority %} <span class="pill {{ 'wait' if item.priority == 1 else 'idle' }}">우선 {{ item.priority }}</span>{% endif %}{% if ans %} <span class="pill ok">입력함</span>{% endif %}</summary>
+      <div class="body">{{ item.body }}</div>
+      {% for field in f.fields %}
+      <div class="field"><div class="small muted">{{ field.label }}</div>
+        {% if field.type == 'choice' %}
+          {% for c in field.choices %}<label class="choice"><input type="radio" name="{{ item.id }}__{{ field.name }}" value="{{ c }}" {% if ans.get(field.name) == c %}checked{% endif %}> {{ c }}</label>{% endfor %}
+        {% else %}
+          <textarea name="{{ item.id }}__{{ field.name }}" rows="2" maxlength="2000">{{ ans.get(field.name, '') }}</textarea>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </details>
+    {% endfor %}
+    <div class="actions">
+      <button name="action" value="save" class="secondary">중간 저장</button>
+      <button name="action" value="submit">제출하고 계속</button>
+    </div>
+  </form>
   {% elif t.status in ('approved', 'running') %}
   <form class="inline" method="post" action="/tasks/{{ t.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary small">작업 중단</button></form>
   {% endif %}

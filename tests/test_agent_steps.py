@@ -176,3 +176,26 @@ def test_complete_is_retried_through_hub_outage(tmp_path):
     ex = Executor(client, tmp_path, claude_bin="c", model="m", use_systemd=False)
     ex._complete(1, "succeeded", {}, None, delays=(0, 0, 0))
     assert client.calls == 3
+
+
+def test_write_step_files_stays_inside_workdir(tmp_path):
+    from agent.steps.files import write_step_files
+    write_step_files(str(tmp_path), {".research-hub/answers/a.jsonl": "x\n"})
+    assert (tmp_path / ".research-hub/answers/a.jsonl").read_text() == "x\n"
+    for bad in ("/tmp/evil", "../evil", "a/../../evil"):
+        with pytest.raises(ValueError):
+            write_step_files(str(tmp_path), {bad: "x"})
+
+
+def test_executor_writes_files_before_run(tmp_path):
+    step = {"id": 6, "kind": "run", "model": "none", "workdir": str(tmp_path),
+            "command": "cat answers.jsonl", "timeout_hours": 1, "files": {"answers.jsonl": "LABELS"}}
+    client = FakeClient([step])
+    ex = Executor(client, tmp_path / "state", claude_bin="c", model="m", use_systemd=False)
+    ex.tick(now=0)
+    deadline = time.time() + 10
+    while not any(p.endswith("/complete") for p, _ in client.calls) and time.time() < deadline:
+        time.sleep(0.1)
+        ex.tick(now=time.time())
+    (_, payload), = [c for c in client.calls if c[0].endswith("/complete")]
+    assert "LABELS" in payload["result"]["log_tail"]

@@ -1,10 +1,13 @@
 """Pure rules for how a task moves through its steps. No I/O here."""
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 RETRY_LIMIT = 3
-RETRYABLE = {"timeout", "no_result", "bad_result", "lost", "tool_error", "exit_nonzero"}
+RETRYABLE = {"timeout", "no_result", "bad_result", "lost", "tool_error"}
+# A shell command that exits non-zero or times out will almost always do so again; only a lost node is retried.
+RETRYABLE_RUN = {"lost"}
 WAITABLE = {"session_limit"}
 
 
@@ -25,17 +28,53 @@ class RunSpec(_Strict):
     success_marker: str | None = Field(default=None, max_length=200)
 
 
+class FormField(_Strict):
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{0,39}$")
+    label: str = Field(min_length=1, max_length=100)
+    type: Literal["choice", "text"]
+    choices: list[str] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def _choices(self):
+        if self.type == "choice" and not self.choices:
+            raise ValueError("choice 필드에는 choices 가 필요합니다")
+        return self
+
+
+class FormItem(_Strict):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$")
+    title: str = Field(min_length=1, max_length=300)
+    body: str = Field(default="", max_length=8000)
+    priority: int | None = Field(default=None, ge=1, le=9)
+
+
+class HumanInput(_Strict):
+    instructions: str = Field(min_length=1, max_length=3000)
+    answers_path: str = Field(min_length=1, max_length=300)
+    fields: list[FormField] = Field(min_length=1, max_length=6)
+    items: list[FormItem] = Field(min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def _relative_path(self):
+        parts = self.answers_path.replace("\\", "/").split("/")
+        if self.answers_path.startswith("/") or ".." in parts:
+            raise ValueError("answers_path 는 작업 디렉터리 안의 상대 경로여야 합니다")
+        return self
+
+
 class PlanResult(_Strict):
     summary: str = Field(min_length=1)
     approach: list[str]
     needs_implement: bool
     run: RunSpec | None = None
+    human_input: HumanInput | None = None
 
 
 class ImplementResult(_Strict):
     summary: str = Field(min_length=1)
     changed_files: list[str] = Field(default_factory=list)
     run: RunSpec | None = None
+    human_input: HumanInput | None = None
 
 
 class RunResult(_Strict):
@@ -141,9 +180,10 @@ def enforce_trust(card: dict, verify: dict | None) -> dict:
     return {**card, "trust": {"verified": bool(verify["verified"]), "notes": [*notes, *extra]}}
 
 
-def retry_decision(error_class: str | None, attempt: int) -> StepOutcome:
+def retry_decision(error_class: str | None, attempt: int, kind: str = "plan") -> StepOutcome:
     if error_class in WAITABLE:
         return StepOutcome.WAIT
-    if error_class in RETRYABLE and attempt < RETRY_LIMIT:
+    retryable = RETRYABLE_RUN if kind == "run" else RETRYABLE
+    if error_class in retryable and attempt < RETRY_LIMIT:
         return StepOutcome.RETRY
     return StepOutcome.PROBLEM

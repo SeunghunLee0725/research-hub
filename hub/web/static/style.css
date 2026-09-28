@@ -75,3 +75,11 @@ form.inline { display: inline; }
 .option input { margin-top: 4px; }
 a.card.attention { color: inherit; border-color: var(--warn); display: block; }
 a.card.attention:hover { text-decoration: none; background: var(--warn-bg); }
+.human h2 { margin-top: 0; } .instructions { white-space: pre-wrap; }
+details.item { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+details.item summary { cursor: pointer; }
+.item .body { white-space: pre-wrap; font-size: 14px; margin: 8px 0; max-height: 360px; overflow-y: auto;
+  background: var(--bg); padding: 8px; border-radius: 6px; }
+.field { margin: 6px 0; } label.choice { display: inline-flex; gap: 4px; margin: 4px 12px 4px 0; align-items: center; }
+textarea { width: 100%; font: inherit; padding: 6px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); }

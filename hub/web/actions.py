@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from hub.db.models import Task
 from hub.db.session import get_db
-from hub.services import tasks
+from hub.services import human, tasks
 from hub.web.auth import is_admin
 
 router = APIRouter()
@@ -80,4 +80,20 @@ def cancel(task_id: int, request: Request, db: Db, csrf: Csrf):
 def retry(task_id: int, request: Request, db: Db, csrf: Csrf):
     task = _guard(request, db, task_id, csrf)
     _run(tasks.retry_problem, db, task, _now())
+    return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+
+
+@router.post("/tasks/{task_id}/human-input")
+async def human_input(task_id: int, request: Request, db: Db):
+    data = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+    task = _guard(request, db, task_id, data.get("csrf", ""))
+    pending = human.open_request(db, task)
+    if pending is None or task.status != "waiting_human":
+        raise HTTPException(409, "입력을 기다리는 항목이 없습니다")
+    try:
+        answers = human.parse_answers(pending.form, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    action = human.submit if data.get("action") == "submit" else human.save
+    action(db, pending, answers, _now())
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)

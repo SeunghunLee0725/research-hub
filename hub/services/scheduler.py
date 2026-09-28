@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hub.db.models import Event, Project, QuotaSnapshot, Step, Task
-from hub.services import router
+from hub.services import human, router
 from hub.services import tasks as task_service
 from hub.services.pipeline import StepOutcome, enforce_trust, next_kind, retry_decision, run_spec
 from hub.services.prompts import build_prompt
@@ -41,13 +41,14 @@ def _new_step(db: Session, task: Task, seq: int, kind: str, attempt: int, spec: 
                 input={})
     db.add(step)
     db.flush()
+    files = human.submitted_files(db, task)
     if kind == "run":
         step.input = {"command": spec["command"], "timeout_hours": spec["timeout_hours"],
                       "expected_artifacts": spec.get("expected_artifacts", []),
-                      "success_marker": spec.get("success_marker")}
+                      "success_marker": spec.get("success_marker"), "files": files}
     else:
         result_path = f"{project.workdir}/.research-hub/steps/{step.id}/result.json"
-        step.input = {"result_path": result_path, "timeout_minutes": MODEL_TIMEOUT_MINUTES,
+        step.input = {"result_path": result_path, "timeout_minutes": MODEL_TIMEOUT_MINUTES, "files": files,
                       "prompt": build_prompt(kind, project, task, _outputs(db, task), result_path)}
     return step
 
@@ -97,6 +98,10 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
     if step is None or step.status in ("pending", "leased", "running"):
         return
     if step.status == "succeeded":
+        form = (step.output or {}).get("human_input")
+        if form and human.request_for_step(db, step) is None:
+            human.create_request(db, task, step, form)
+            return
         outputs = _outputs(db, task)
         following = next_kind(step.kind, step.output, outputs)
         if following is None:
@@ -109,7 +114,7 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
         return
     if _switch_model(db, task, step):
         return
-    decision = retry_decision(step.error_class, step.attempt)
+    decision = retry_decision(step.error_class, step.attempt, step.kind)
     if decision is StepOutcome.WAIT:
         step.status, step.not_before, step.node_id = "pending", now + SESSION_LIMIT_WAIT, None
         db.add(Event(task_id=task.id, step_id=step.id, level="warn", message="사용량 한도 — 30분 뒤 재시도"))
