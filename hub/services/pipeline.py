@@ -64,6 +64,7 @@ class HumanInput(_Strict):
     instructions: str = Field(min_length=1, max_length=3000)
     answers_path: str = Field(min_length=1, max_length=300)
     layout: Literal["cards", "table"] = "cards"
+    requires_human: bool = False
     fields: list[FormField] = Field(min_length=1, max_length=6)
     items: list[FormItem] = Field(min_length=1, max_length=300)
 
@@ -99,6 +100,7 @@ class AnalyzeResult(_Strict):
     summary: str = Field(min_length=1)
     findings: list[str]
     criteria_met: bool | None = None
+    human_input: HumanInput | None = None
 
 
 class ReviewResult(_Strict):

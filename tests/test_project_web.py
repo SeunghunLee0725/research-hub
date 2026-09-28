@@ -31,11 +31,11 @@ def _create(client, **extra):
 def test_new_project_form_and_create(client, db):
     page = client.get("/projects/new").text
     assert "새 프로젝트" in page and "spark-2588" in page and 'name="plan"' in page
-    resp = _create(client, auto_ai_review="1")
+    resp = _create(client)
     assert resp.status_code == 303 and resp.headers["location"] == "/projects/xray-new"
     project = db.query(Project).one()
     assert project.workdir == "~/research_projects/xray-new"
-    assert project.node_selector == ["node:spark-2588"] and project.auto_ai_review is True
+    assert project.node_selector == ["node:spark-2588"]
     assert project.context == "방어 목적 연구"
     plan = db.query(Upload).one()
     assert plan.path == "plan.md" and plan.data == "# 계획\n1. 자료 조사".encode()

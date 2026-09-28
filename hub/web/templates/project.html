@@ -31,7 +31,6 @@
     <label>제목<input name="title" required maxlength="200"></label>
     <label>목표 <span class="muted small">무엇을 왜 하는지</span><textarea name="objective" rows="4" required maxlength="8000"></textarea></label>
     <label>성공 기준 <span class="muted small">비우면 계획 단계가 제안</span><textarea name="criteria" rows="2" maxlength="4000"></textarea></label>
-    <label class="check"><input type="checkbox" name="human_review" value="1"> 사람이 판정</label>
     <div class="actions"><button name="start" value="1">등록하고 시작</button><button class="secondary">등록만(나중에 승인)</button></div>
   </form>
   {% endif %}
@@ -44,7 +43,6 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label>이름<input name="name" value="{{ p.name }}" maxlength="200"></label>
     <label>배경 지시<textarea name="context" rows="6" maxlength="20000">{{ p.context or '' }}</textarea></label>
-    <label class="check"><input type="checkbox" name="auto_ai_review" value="1" {% if p.auto_ai_review %}checked{% endif %}> 사람 판정이 필요하면 LLM이 대신 판정</label>
     <button class="secondary">저장</button>
   </form>
 </section>

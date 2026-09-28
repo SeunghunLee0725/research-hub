@@ -18,6 +18,7 @@ class TaskDetail:
     events: tuple[Event, ...]
     request: HumanRequest | None = None
     media: dict | None = None
+    reopenable: bool = False
 
 
 def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None:
@@ -30,5 +31,6 @@ def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None
                         .order_by(Event.id.desc()).limit(event_limit)).all()
     request = human.open_request(db, task)
     media = dict(db.execute(select(Media.path, Media.id).where(Media.step_id == request.step_id)).all()) if request else {}
+    reopenable = task.status == "problem" and human.last_submitted(db, task) is not None
     return TaskDetail(task, db.get(Project, task.project_id), node.name if node else None,
-                      tuple(steps), tuple(events), request, media)
+                      tuple(steps), tuple(events), request, media, reopenable)

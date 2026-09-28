@@ -56,8 +56,7 @@ def new_project(request: Request, db: Db):
 
 @router.post("/projects")
 def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), name: Text(200), node: Text(64),
-                   workdir: Text(300) = "", context: Text(20000) = "", plan: Text(200000) = "",
-                   auto_ai_review: Text(4) = ""):
+                   workdir: Text(300) = "", context: Text(20000) = "", plan: Text(200000) = ""):
     _admin(request)
     _check_csrf(request, csrf)
     slug = slug.strip()
@@ -69,7 +68,7 @@ def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), na
     if not (workdir.startswith("/") or workdir.startswith("~/")) or ".." in workdir.split("/"):
         raise HTTPException(422, "작업 폴더는 / 또는 ~/ 로 시작하는 경로여야 합니다")
     project = Project(slug=slug, name=name.strip() or slug, workdir=workdir, node_selector=[f"node:{node}"],
-                      context=context.strip() or None, auto_ai_review=bool(auto_ai_review))
+                      context=context.strip() or None)
     db.add(project)
     try:
         db.commit()
@@ -115,7 +114,7 @@ async def upload_files(slug: str, request: Request, db: Db, files: list[UploadFi
 
 @router.post("/projects/{slug}/tasks")
 def add_task(slug: str, request: Request, db: Db, csrf: Text(128), title: Text(200), objective: Text(8000),
-             criteria: Text(4000) = "", start: Text(4) = "", human_review: Text(4) = ""):
+             criteria: Text(4000) = "", start: Text(4) = ""):
     _admin(request)
     _check_csrf(request, csrf)
     project = _project(db, slug)
@@ -125,17 +124,15 @@ def add_task(slug: str, request: Request, db: Db, csrf: Text(128), title: Text(2
         db.rollback()
         raise HTTPException(409, "이 프로젝트에는 진행 중인 작업이 있습니다(프로젝트당 1개)") from exc
     if start:
-        tasks.approve_start(db, task, _now(), "human" if human_review else None)
+        tasks.approve_start(db, task, _now())
     return RedirectResponse(f"/tasks/{task.id}", status_code=303)
 
 
 @router.post("/projects/{slug}/settings")
-def update_settings(slug: str, request: Request, db: Db, csrf: Text(128), name: Text(200), context: Text(20000) = "",
-                    auto_ai_review: Text(4) = ""):
+def update_settings(slug: str, request: Request, db: Db, csrf: Text(128), name: Text(200), context: Text(20000) = ""):
     _admin(request)
     _check_csrf(request, csrf)
     project = _project(db, slug)
     project.name, project.context = name.strip() or project.name, context.strip() or None
-    project.auto_ai_review = bool(auto_ai_review)
     db.commit()
     return RedirectResponse(f"/projects/{slug}", status_code=303)

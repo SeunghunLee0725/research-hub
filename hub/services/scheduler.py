@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hub.db.models import Event, Project, QuotaSnapshot, Step, Task
+from hub.db.models import Event, HumanRequest, Project, QuotaSnapshot, Step, Task
 from hub.services import human, router
 from hub.services import tasks as task_service
 from hub.services.pipeline import StepOutcome, enforce_trust, next_kind, retry_decision, run_spec
@@ -104,6 +104,21 @@ def _finish_review(db: Session, task: Task, step: Step, now: datetime, usage: di
     return True
 
 
+def _rerun_with_new_input(db: Session, task: Task, step: Step) -> bool:
+    """A person re-answered a form after this step failed: run the step again with the new answers."""
+    latest = db.scalar(select(HumanRequest).where(HumanRequest.task_id == task.id, HumanRequest.status == "submitted")
+                       .order_by(HumanRequest.submitted_at.desc()).limit(1))
+    if latest is None or step.ended_at is None:
+        return False
+    files = human.submitted_files(db, task)
+    if files == step.input.get("files") and latest.submitted_at <= step.ended_at:
+        return False
+    db.add(Step(task_id=task.id, seq=step.seq, kind=step.kind, model=step.model, attempt=step.attempt + 1,
+                input={**step.input, "files": files}))
+    db.add(Event(task_id=task.id, step_id=step.id, message=f"새 입력으로 {step.kind} 단계 다시 실행"))
+    return True
+
+
 def _switch_model(db: Session, task: Task, step: Step) -> bool:
     """On model-specific failures, retry the same step once with the other model."""
     other = router.alternate(step.model)
@@ -130,9 +145,7 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
         form = (step.output or {}).get("human_input")
         request = human.request_for_step(db, step)
         if form and request is None:
-            project = db.get(Project, task.project_id)
-            by_llm = task.review_by == "llm" or (task.review_by is None and project.auto_ai_review)
-            request = human.create_request(db, task, step, form, by_llm=by_llm)
+            request = human.create_request(db, task, step, form)
         if request is not None and request.status == "pending":
             if request.answered_by == "llm":
                 _new_step(db, task, step.seq + 1, "review", 1, None, usage)
@@ -146,6 +159,8 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
             db.add(Event(task_id=task.id, message="결과 도착 — 결과 승인 대기"))
         else:
             _new_step(db, task, step.seq + 1, following, 1, run_spec(step.kind, step.output, outputs), usage)
+        return
+    if _rerun_with_new_input(db, task, step):
         return
     if _switch_model(db, task, step):
         return

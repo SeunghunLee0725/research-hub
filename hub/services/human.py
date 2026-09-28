@@ -23,13 +23,32 @@ def create_request(db: Session, task: Task, step: Step, form: dict, by_llm: bool
 
 
 def delegate_to_ai(db: Session, request: HumanRequest, now: datetime) -> None:
+    """One-shot: only this form goes to the LLM; later forms wait for a person again."""
     if request.status != "pending":
         raise ValueError("이미 제출된 입력입니다")
+    if request.form.get("requires_human"):
+        raise ValueError("연구자 본인이 결정해야 하는 항목이라 AI에게 맡길 수 없습니다")
     task = db.get(Task, request.task_id)
     request.answered_by, request.answers = "llm", {}
     task.status = "running"
     db.add(Event(task_id=task.id, message="사용자가 판정을 AI에게 맡김"))
     db.commit()
+
+
+def reopen(db: Session, request: HumanRequest, now: datetime) -> None:
+    """Ask the person again (e.g. the run rejected an AI proxy answer); the failed step reruns on submit."""
+    task = db.get(Task, request.task_id)
+    if task.status != "problem" or request.status != "submitted":
+        raise ValueError("다시 입력할 수 있는 상태가 아닙니다")
+    request.status, request.answered_by, request.answers, request.submitted_at = "pending", "human", {}, None
+    task.status = "waiting_human"
+    db.add(Event(task_id=task.id, message="사용자가 입력 폼을 다시 열었음 — 사람 입력 대기"))
+    db.commit()
+
+
+def last_submitted(db: Session, task: Task) -> HumanRequest | None:
+    return db.scalar(select(HumanRequest).where(HumanRequest.task_id == task.id, HumanRequest.status == "submitted")
+                     .order_by(HumanRequest.id.desc()).limit(1))
 
 
 def validate_answers(form: dict, answers: dict[str, dict]) -> dict[str, dict]:

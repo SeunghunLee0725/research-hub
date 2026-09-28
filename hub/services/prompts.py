@@ -64,6 +64,7 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
   사람이 읽는 양을 최소로 한다: 반복되는 안내·내부 식별자·AI 판정 전문은 body 에 넣지 않는다.
   이미지를 보고 판단하는 작업(예: X선 판독)은 layout="table" 로 하고 각 항목 image 에 썸네일(png/jpg, 5MB 이하) 경로를
   넣는다. 표에서는 body 가 접혀 보이므로 한두 줄로 충분하다. AI 판정은 사람의 판단을 끌고 가지 않도록 기본적으로 가린다.
+  연구 방침 결정·서명처럼 연구자 본인만 할 수 있는 입력이면 "requires_human": true 를 넣는다(그 폼은 AI에게 맡길 수 없다).
 - 비밀값(.env, 토큰)을 출력하거나 파일에 복사하지 않는다.
 - 되돌리기 어려운 조작(데이터 삭제, git push, 서비스 재시작)은 하지 않는다.
 - 끝나면 반드시 아래 경로에 JSON 하나를 쓴다. 다른 형식은 실패로 처리된다.

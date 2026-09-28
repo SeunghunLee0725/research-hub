@@ -10,7 +10,6 @@
   <label>작업 폴더 <span class="muted small">비우면 ~/research_projects/&lt;프로젝트 ID&gt; 를 만듭니다</span><input name="workdir" maxlength="300" placeholder="~/research_projects/..."></label>
   <label>plan.md <span class="muted small">프로젝트 계획. 모든 단계가 가장 먼저 읽습니다(나중에 파일로 올려도 됨)</span><textarea name="plan" rows="10" placeholder="# 목표&#10;# 범위·제외&#10;# 진행 순서"></textarea></label>
   <label>배경 지시 <span class="muted small">목적·금지 사항·규칙. 모든 단계 프롬프트에 들어갑니다</span><textarea name="context" rows="5"></textarea></label>
-  <label class="check"><input type="checkbox" name="auto_ai_review" value="1"> 사람 판정이 필요하면 LLM이 대신 판정</label>
   <button>만들기</button>
 </form>
 {% endblock %}
