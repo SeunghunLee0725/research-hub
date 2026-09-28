@@ -1,0 +1,12 @@
+[Unit]
+Description=research-hub node agent
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/research-hub
+ExecStart=/usr/bin/python3 -m agent.main --config %h/.config/research-hub/agent.env
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

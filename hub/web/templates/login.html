@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block main %}
+<form class="login" method="post" action="/login">
+  <h1>로그인</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <input type="password" name="password" placeholder="관리자 비밀번호" autofocus required maxlength="256">
+  <button type="submit">들어가기</button>
+</form>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block nav %}
+<form method="post" action="/logout"><button class="link">로그아웃</button></form>
+{% endblock %}
+{% block main %}
+<div id="overview">{% include "_overview.html" %}</div>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

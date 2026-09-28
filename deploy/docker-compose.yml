@@ -1,0 +1,16 @@
+# Postgres for research-hub. Bind to loopback only; the hub talks to it locally.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: research-hub-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: research_hub
+      POSTGRES_USER: research_hub
+      POSTGRES_PASSWORD: ${HUB_PG_PASSWORD:?set HUB_PG_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${HUB_PG_PORT:-5440}:5432"
+    volumes:
+      - research-hub-pg:/var/lib/postgresql/data
+volumes:
+  research-hub-pg:

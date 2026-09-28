@@ -1,0 +1,14 @@
+[Unit]
+Description=research-hub orchestrator (API + web)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/research-hub
+EnvironmentFile=%h/research-hub/.env
+ExecStartPre=%h/.local/bin/uv run --frozen alembic upgrade head
+ExecStart=/bin/sh -c 'exec %h/.local/bin/uv run --frozen uvicorn hub.main:create_app --factory --host "$HUB_BIND_HOST" --port "$HUB_PORT"'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
