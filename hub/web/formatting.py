@@ -8,7 +8,11 @@ STATUS_LABELS = {
     "running": ("실행 중", "", "run"),
     "review": ("승인 대기", "결과 검토 필요", "wait"),
     "problem": ("문제", "확인 필요", "bad"),
+    "done": ("완료", "", "ok"),
+    "cancelled": ("취소", "", "idle"),
 }
+STEP_STATUS = {"pending": ("대기", "idle"), "leased": ("시작", "run"), "running": ("진행 중", "run"),
+               "succeeded": ("완료", "ok"), "failed": ("실패", "bad"), "lost": ("끊김", "bad")}
 NODE_LABELS = {"online": ("온라인", "ok"), "offline": ("오프라인", "bad"), "never": ("연결 전", "idle")}
 LOGIN_LABELS = {"ok": ("로그인", "ok"), "logged_out": ("로그아웃", "bad"), "unknown": ("확인 불가", "warn")}
 

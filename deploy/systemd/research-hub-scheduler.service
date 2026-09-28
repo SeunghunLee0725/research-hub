@@ -1,0 +1,13 @@
+[Unit]
+Description=research-hub scheduler (task pipeline + Telegram alerts)
+After=research-hub.service
+
+[Service]
+WorkingDirectory=%h/research-hub
+EnvironmentFile=%h/research-hub/.env
+ExecStart=%h/.local/bin/uv run --frozen python -m hub.worker
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

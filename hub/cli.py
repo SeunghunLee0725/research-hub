@@ -6,11 +6,13 @@ import sys
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from datetime import datetime, timezone
+
 from hub.config import Settings
-from hub.db.models import Node
+from hub.db.models import Node, Project, Task
 from hub.db.session import make_sessionmaker
 from hub.security import hash_password
-from hub.services import nodes, projects
+from hub.services import nodes, projects, tasks
 
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 
@@ -33,6 +35,13 @@ def _parser() -> argparse.ArgumentParser:
     add_project.add_argument("workdir")
     add_project.add_argument("--node-labels", default="")
     sub.add_parser("hash-password", help="관리자 비밀번호 해시 생성")
+    add_task = sub.add_parser("add-task", help="작업 제안 등록(시작 승인 대기)")
+    add_task.add_argument("slug")
+    add_task.add_argument("title")
+    add_task.add_argument("--objective", required=True)
+    add_task.add_argument("--criteria")
+    approve = sub.add_parser("approve-start", help="작업 시작 승인")
+    approve.add_argument("task_id", type=int)
     return parser
 
 
@@ -45,8 +54,8 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> int
             return 2
         print(hash_password(password))
         return 0
-    name = getattr(args, "name", None) if args.command != "add-project" else args.slug
-    if not NAME_RE.fullmatch(name):
+    name = args.slug if args.command in ("add-project", "add-task") else getattr(args, "name", None)
+    if name is not None and not NAME_RE.fullmatch(name):
         print(f"이름 형식이 잘못됐습니다(소문자·숫자·하이픈): {name}", file=sys.stderr)
         return 2
     settings = settings or Settings()
@@ -73,8 +82,41 @@ def _run(db, args) -> int:
         print("새 노드 토큰(다시 표시되지 않습니다):")
         print(nodes.rotate_token(db, node))
         return 0
+    if args.command == "add-task":
+        return _add_task(db, args)
+    if args.command == "approve-start":
+        return _approve_start(db, args.task_id)
     projects.create_project(db, args.slug, args.name, args.workdir, _labels(args.node_labels))
     print(f"프로젝트 등록: {args.slug}")
+    return 0
+
+
+def _add_task(db, args) -> int:
+    project = db.scalar(select(Project).where(Project.slug == args.slug))
+    if project is None:
+        print(f"프로젝트가 없습니다: {args.slug}", file=sys.stderr)
+        return 1
+    try:
+        task = tasks.create_task(db, project, args.title, args.objective, args.criteria)
+    except IntegrityError:
+        db.rollback()
+        print("이 프로젝트에는 이미 진행 중인 작업이 있습니다(프로젝트당 1개).", file=sys.stderr)
+        return 1
+    print(f"작업 #{task.id} 등록 — 시작 승인 대기")
+    return 0
+
+
+def _approve_start(db, task_id: int) -> int:
+    task = db.get(Task, task_id)
+    try:
+        if task is None:
+            raise ValueError(f"작업이 없습니다: {task_id}")
+        tasks.approve_start(db, task, datetime.now(timezone.utc))
+    except ValueError as exc:
+        db.rollback()
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"작업 #{task_id} 시작 승인")
     return 0
 
 

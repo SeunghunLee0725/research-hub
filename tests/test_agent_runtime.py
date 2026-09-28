@@ -71,3 +71,11 @@ def test_load_config_requires_values(tmp_path):
     env.write_text("HUB_URL=http://x\n")
     with pytest.raises(ValueError, match="HUB_NODE_TOKEN"):
         load_config(env)
+
+
+def test_load_config_execution_options(tmp_path):
+    env = tmp_path / "agent.env"
+    env.write_text("HUB_URL=http://x\nHUB_NODE_TOKEN=t\nAGENT_EXECUTE=0\nAGENT_MODEL=sonnet\n")
+    cfg = load_config(env)
+    assert (cfg.execute, cfg.model) == (False, "sonnet")
+    assert load_config(tmp_path.joinpath("agent.env")).execute is False

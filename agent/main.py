@@ -10,6 +10,7 @@ from pathlib import Path
 from agent import __version__
 from agent.client import HubClient, HubError
 from agent.config import load_config
+from agent.executor import Executor
 from agent.probes import gpu, logins, quota, system
 from agent.schedule import Schedule
 
@@ -36,8 +37,15 @@ def _job(name: str, cfg, home: Path) -> list[tuple[str, dict]]:
 
 def loop(cfg, home: Path) -> None:
     client, schedule = HubClient(cfg.hub_url, cfg.token), Schedule(INTERVALS)
+    executor = Executor(client, home / ".local/state/research-hub", _binary("claude", home), cfg.model) \
+        if cfg.execute else None
     while True:
         now = time.monotonic()
+        if executor is not None:
+            try:
+                executor.tick(time.time())
+            except Exception:
+                log.exception("executor tick failed")
         due = schedule.due(now)
         for name in due:
             try:

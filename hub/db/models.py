@@ -88,6 +88,8 @@ class Step(Base):
     attempt: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
     node_id: Mapped[int | None] = mapped_column(ForeignKey("nodes.id"))
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    not_before: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_progress_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     input: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'"))

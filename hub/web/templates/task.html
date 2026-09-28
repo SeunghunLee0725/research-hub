@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block nav %}<a class="link" href="/">← 현황</a>{% endblock %}
+{% block main %}
+{% set t = d.task %}{% set st = STATUS[t.status] %}
+<section>
+  <div class="muted small">{{ d.project.name }} · 작업 #{{ t.id }}{% if d.node %} · {{ d.node }}{% endif %}</div>
+  <h1 class="title">{{ t.title }}</h1>
+  <p><span class="pill {{ st[2] }}">{{ st[0] }}</span> <span class="muted small">{{ st[1] }}</span></p>
+  <dl class="wide">
+    <dt>목표</dt><dd>{{ t.objective }}</dd>
+    <dt>성공 기준</dt><dd>{{ t.success_criteria or '계획 단계에서 제안' }}</dd>
+  </dl>
+</section>
+
+{% if t.result_card %}{% set c = t.result_card %}
+<section class="card result">
+  <h2>결과</h2>
+  <p class="conclusion">{{ c.conclusion }}</p>
+  <dl class="wide">
+    <dt>한 일</dt><dd>{{ c.what_we_did }}</dd>
+    {% if c.metrics %}<dt>수치</dt><dd><table class="metrics"><tr><th>지표</th><th>기준</th><th>결과</th><th></th></tr>
+      {% for m in c.metrics %}<tr><td>{{ m.name }}</td><td>{{ m.baseline or '-' }}</td><td><strong>{{ m.result }}</strong></td><td class="muted small">{{ m.note }}</td></tr>{% endfor %}
+    </table></dd>{% endif %}
+    <dt>믿을만?</dt><dd>{% if c.trust.verified %}<span class="pill ok">원자료 확인됨</span>{% else %}<span class="pill warn">미검증</span>{% endif %}
+      {% for n in c.trust.notes %}<div class="small">{{ n }}</div>{% endfor %}</dd>
+    {% if c.limits %}<dt>한계</dt><dd>{% for l in c.limits %}<div>⚠ {{ l }}</div>{% endfor %}</dd>{% endif %}
+    <dt>다음 후보</dt><dd>{% for o in c.next_options %}<div><strong>{{ o.title }}</strong> <span class="muted small">~{{ o.est_hours }}시간</span><div class="small muted">{{ o.why }}</div></div>{% endfor %}</dd>
+  </dl>
+</section>
+{% endif %}
+
+<section>
+  <h2>단계</h2>
+  <ol class="steps">
+  {% for s in d.steps %}{% set ss = STEP_STATUS[s.status] %}
+    <li><strong>{{ STEP[s.kind] }}</strong>{% if s.attempt > 1 %} <span class="muted small">{{ s.attempt }}회째</span>{% endif %}
+      <span class="pill {{ ss[1] }}">{{ ss[0] }}</span> <span class="muted small">{{ s.model if s.model != 'none' else '' }} {{ ago(s.started_at, now) if s.started_at else '' }}</span>
+      {% if s.output and s.output.summary %}<div class="small">{{ s.output.summary }}</div>{% endif %}
+      {% if s.kind == 'run' and s.input.command %}<code class="small">{{ s.input.command }}</code>{% endif %}
+    </li>
+  {% else %}<li class="muted">아직 시작 전</li>{% endfor %}
+  </ol>
+</section>
+
+<section>
+  <h2>진행 기록</h2>
+  <ul class="events">
+  {% for e in d.events %}<li class="{{ e.level }}"><span class="muted small">{{ local_time(e.at, tz) }}</span> {{ e.message }}</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

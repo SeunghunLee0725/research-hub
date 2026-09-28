@@ -6,6 +6,7 @@ After=network-online.target
 WorkingDirectory=%h/research-hub
 ExecStart=/usr/bin/python3 -m agent.main --config %h/.config/research-hub/agent.env
 Restart=always
+KillMode=mixed
 RestartSec=10
 
 [Install]

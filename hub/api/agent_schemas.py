@@ -62,3 +62,13 @@ class Quota(_Frozen):
     provider: Literal["claude", "codex"]
     windows: list[QuotaWindow] = Field(default_factory=list, max_length=16)
     error: str | None = Field(default=None, max_length=300)
+
+
+class Progress(_Frozen):
+    message: str | None = Field(default=None, max_length=500)
+
+
+class Complete(_Frozen):
+    status: Literal["succeeded", "failed"]
+    result: dict | None = None
+    error_class: str | None = Field(default=None, max_length=32)

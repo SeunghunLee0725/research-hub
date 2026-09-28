@@ -1,0 +1,62 @@
+"""Runs one model step with the Claude Code CLI and reads the step's JSON result file."""
+import json
+import os
+import subprocess
+from pathlib import Path
+
+ALLOWED_TOOLS = "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
+PATTERNS = (
+    ("session_limit", ("session limit", "usage limit", "hit your limit", "rate limit")),
+    ("auth", ("/login", "not logged in", "invalid api key", "authentication", "oauth token")),
+    ("refusal", ("can't help with", "cannot help with", "general_harms", "usage policy")),
+)
+
+
+def build_command(claude_bin: str, model: str) -> list[str]:
+    return [claude_bin, "-p", "--output-format", "json", "--model", model,
+            "--permission-mode", "acceptEdits", "--allowedTools", ALLOWED_TOOLS]
+
+
+def _parse(stdout: str) -> dict | None:
+    try:
+        data = json.loads(stdout)
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def classify(returncode: int, stdout: str, stderr: str) -> str | None:
+    data = _parse(stdout)
+    if returncode == 0 and data is not None and not data.get("is_error"):
+        return None
+    text = " ".join([str((data or {}).get("result", "")), stdout if data is None else "", stderr]).lower()
+    for error_class, needles in PATTERNS:
+        if any(n in text for n in needles):
+            return error_class
+    return "tool_error"
+
+
+def run_model_step(step: dict, claude_bin: str, model: str) -> tuple[str, dict | None, str | None]:
+    result_path = Path(step["result_path"])
+    result_path.unlink(missing_ok=True)  # never pick up a previous attempt's file
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        proc = subprocess.run(build_command(claude_bin, model), input=step["prompt"], cwd=step["workdir"],
+                              capture_output=True, text=True, timeout=float(step["timeout_minutes"]) * 60,
+                              env={**os.environ, "RESEARCH_HUB_STEP": str(step["id"])})
+    except subprocess.TimeoutExpired:
+        return "failed", None, "timeout"
+    except OSError:
+        return "failed", None, "tool_error"
+    error = classify(proc.returncode, proc.stdout, proc.stderr)
+    if error:
+        return "failed", {"message": (proc.stdout or proc.stderr)[-1000:]}, error
+    try:
+        result = json.loads(result_path.read_text())
+    except (OSError, ValueError):
+        return "failed", None, "no_result"
+    if not isinstance(result, dict):
+        return "failed", None, "no_result"
+    meta = _parse(proc.stdout) or {}
+    return "succeeded", {**result, "_meta": {"cost_usd": meta.get("total_cost_usd"),
+                                             "session_id": meta.get("session_id")}}, None

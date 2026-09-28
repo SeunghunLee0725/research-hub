@@ -53,3 +53,14 @@ button.link { background: none; color: var(--muted); padding: 0; }
   .projects td { display: flex; justify-content: space-between; border: 0; padding: 4px 12px; }
   .projects td::before { content: attr(data-label); color: var(--muted); font-size: 13px; }
 }
+a { color: var(--run); text-decoration: none; } a:hover { text-decoration: underline; }
+.title { font-size: 20px; margin: 4px 0; }
+dl.wide { grid-template-columns: 90px 1fr; gap: 6px 12px; }
+.result { margin-top: 16px; } .result h2 { margin-top: 0; }
+.conclusion { font-size: 17px; font-weight: 600; margin: 4px 0 8px; }
+table.metrics { border-collapse: collapse; } .metrics th, .metrics td { padding: 2px 10px 2px 0; text-align: left; }
+.metrics th { color: var(--muted); font-weight: 500; font-size: 13px; }
+ol.steps, ul.events { padding-left: 20px; } .steps li, .events li { margin: 6px 0; }
+.events li.error { color: var(--bad); } .events li.warn { color: var(--warn); }
+code { font-family: ui-monospace, Menlo, monospace; background: var(--idle-bg); padding: 1px 5px; border-radius: 4px;
+  display: inline-block; max-width: 100%; overflow-x: auto; white-space: pre; }
