@@ -125,9 +125,6 @@ def _approve_start(db, task_id: int) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
 
 def _set_context(db, slug: str, path: str) -> int:
     project = db.scalar(select(Project).where(Project.slug == slug))
@@ -143,3 +140,6 @@ def _set_context(db, slug: str, path: str) -> int:
     db.commit()
     print(f"배경 지시 설정: {slug} ({len(project.context)}자)")
     return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

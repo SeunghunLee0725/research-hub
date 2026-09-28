@@ -42,3 +42,10 @@ def test_hash_password(capsys, settings, monkeypatch):
     monkeypatch.setattr("getpass.getpass", lambda prompt="": "pw-123456")
     assert cli.main(["hash-password"], settings) == 0
     assert verify_password("pw-123456", capsys.readouterr().out.strip())
+
+
+def test_cli_runs_as_script():
+    import subprocess
+    import sys
+    out = subprocess.run([sys.executable, "-m", "hub.cli", "set-context", "--help"], capture_output=True, text=True)
+    assert out.returncode == 0 and "slug" in out.stdout
