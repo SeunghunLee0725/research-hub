@@ -57,14 +57,14 @@
 </section>
 
 <section>
-  <h2>프로젝트</h2>
+  <div class="header-actions"><h2>프로젝트</h2><a class="pill run" href="/projects/new">+ 새 프로젝트</a></div>
   <table class="projects">
     <thead><tr><th>프로젝트</th><th>상태</th><th>현재 작업</th><th>머신</th><th>최근 소식</th></tr></thead>
     <tbody>
     {% for p in view.projects %}
       {% set st = STATUS[p.status] %}
       <tr>
-        <td data-label="프로젝트"><strong>{{ p.name }}</strong></td>
+        <td data-label="프로젝트"><a href="/projects/{{ p.slug }}"><strong>{{ p.name }}</strong></a></td>
         <td data-label="상태"><span class="pill {{ st[2] }}">{{ st[0] }}</span> <span class="muted small">{{ st[1] }}</span></td>
         <td data-label="현재 작업">{% if p.task_id %}<a href="/tasks/{{ p.task_id }}">{{ p.task_title }}</a>{% else %}-{% endif %}</td>
         <td data-label="머신">{{ p.node or '-' }}</td>

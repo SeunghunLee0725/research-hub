@@ -25,3 +25,14 @@ class HubClient:
         if not body.get("success"):
             raise HubError(f"{path}: {body.get('error')}")
         return body.get("data")
+
+    def get_bytes(self, path: str) -> bytes:
+        req = urllib.request.Request(self._base + path, method="GET",
+                                     headers={"Authorization": f"Bearer {self._token}"})
+        try:
+            with self._open(req, timeout=120) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as exc:
+            raise HubError(f"HTTP {exc.code} {path}") from exc
+        except OSError as exc:
+            raise HubError(f"{path}: {exc}") from exc

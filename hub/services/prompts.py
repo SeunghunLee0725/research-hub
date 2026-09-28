@@ -51,6 +51,8 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
 {history}
 
 ## 규칙
+- 가장 먼저 작업 디렉터리의 plan.md(프로젝트 계획)를 읽고 그 방향을 따른다. 없으면 없다고 기록하고 진행한다.
+  사용자가 올린 관련 자료는 materials/ 에 있다.
 - 이 작업 하나에만 집중한다. 범위를 넓히지 않는다.
 - 사람의 판단·라벨·확인이 필요한 부분은 직접 채우지 말고, plan/implement 결과의 human_input 에 폼을 정의한다.
   작업은 사람이 웹에서 답할 때까지 멈추고, 답은 answers_path 에 JSONL(한 줄에 {{"id": 항목 id, 필드명: 값}}, 답한 항목만)로
@@ -86,6 +88,7 @@ def build_review_prompt(project: Project, task: Task, form: dict, form_path: str
 필드: {fields}
 
 ## 규칙
+- 작업 디렉터리의 plan.md(프로젝트 계획)를 먼저 읽는다. 관련 자료는 materials/ 에 있다.
 - 항목마다 독립적으로, 폼 안내와 항목 본문의 기준대로 판단한다. 필요하면 작업 디렉터리의 원자료를 직접 확인한다.
 - 본문에 이전 AI 판정이 있더라도 그대로 따르지 말고 근거를 스스로 확인한다. 애매하면 더 보수적인 선택지를 고르고 이유를 적는다.
 - 텍스트 필드(이유·메모 등)는 한두 문장으로 판정 근거를 적는다.

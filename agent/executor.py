@@ -104,6 +104,7 @@ class Executor:
         step = (data or {}).get("step")
         if not step:
             return
+        step = {**step, "workdir": str(Path(step["workdir"]).expanduser())}
         try:
             write_step_files(step["workdir"], step.get("files") or {})
         except (OSError, ValueError) as exc:

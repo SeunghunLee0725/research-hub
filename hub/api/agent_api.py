@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,11 +10,11 @@ import base64
 import binascii
 import hashlib
 
-from hub.api.agent_schemas import Complete, Heartbeat, Logins, MediaUpload, Progress, Quota
+from hub.api.agent_schemas import Complete, Heartbeat, Logins, MediaUpload, Progress, Quota, Sync, UploadResult
 from hub.api.envelope import ok
-from hub.db.models import Media, Node, Project, Step, Task
+from hub.db.models import Media, Node, Project, Step, Task, Upload
 from hub.db.session import get_db
-from hub.services import leasing, nodes
+from hub.services import leasing, nodes, uploads
 
 router = APIRouter(prefix="/agent/v1")
 Db = Annotated[Session, Depends(get_db)]
@@ -110,3 +111,39 @@ def upload_media(step_id: int, body: MediaUpload, node: AgentNode, db: Db) -> di
                      sha256=hashlib.sha256(data).hexdigest(), data=data))
         db.commit()
     return ok({"path": body.path})
+
+
+@router.post("/sync")
+def sync(body: Sync, node: AgentNode, db: Db) -> dict:
+    """Tell the node which project folders it hosts and which dropped files to fetch; record folder health."""
+    projects = uploads.node_projects(db, node)
+    for project in projects:
+        status = body.projects.get(str(project.id))
+        if status is not None:
+            project.workdir_status = status.model_dump()
+    db.commit()
+    return ok({"projects": [{"id": p.id, "slug": p.slug, "workdir": p.workdir} for p in projects],
+               "uploads": [{"id": u.id, "project_id": u.project_id, "path": u.path, "size": u.size}
+                           for u in uploads.pending_for(db, projects)]})
+
+
+def _node_upload(db: Session, node: Node, upload_id: int) -> Upload:
+    upload = db.get(Upload, upload_id)
+    if upload is None or upload.project_id not in {p.id for p in uploads.node_projects(db, node)}:
+        raise HTTPException(404, "unknown upload")
+    return upload
+
+
+@router.get("/uploads/{upload_id}/content")
+def upload_content(upload_id: int, node: AgentNode, db: Db):
+    upload = _node_upload(db, node, upload_id)
+    if upload.data is None:
+        raise HTTPException(410, "already delivered")
+    return Response(upload.data, media_type="application/octet-stream")
+
+
+@router.post("/uploads/{upload_id}/result")
+def upload_result(upload_id: int, body: UploadResult, node: AgentNode, db: Db) -> dict:
+    upload = _node_upload(db, node, upload_id)
+    uploads.record_result(db, upload, body.ok, body.written_path, body.error, _now())
+    return ok({"upload": upload_id})

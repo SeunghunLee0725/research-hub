@@ -222,3 +222,41 @@ def test_executor_uploads_form_images_before_completing(tmp_path):
     uploads = [payload for p, payload in client.calls if p.endswith("/media")]
     assert [u["path"] for u in uploads] == ["thumbs/a.png"] and uploads[0]["content_type"] == "image/png"
     assert paths.index("/agent/v1/steps/1/media") < paths.index("/agent/v1/steps/1/complete")
+
+
+def test_sync_materializes_projects_and_uploads(tmp_path, monkeypatch):
+    from agent.sync import Syncer
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "research_projects/p").mkdir(parents=True)
+    (tmp_path / "research_projects/p/plan.md").write_text("old plan")
+
+    class Hub:
+        def __init__(self):
+            self.results = []
+            self.reported = []
+
+        def post(self, path, payload):
+            if path == "/agent/v1/sync":
+                self.reported.append(payload["projects"])
+                return {"projects": [{"id": 1, "slug": "p", "workdir": "~/research_projects/p"}],
+                        "uploads": [{"id": 10, "project_id": 1, "path": "plan.md", "size": 8},
+                                    {"id": 11, "project_id": 1, "path": "materials/a.pdf", "size": 3},
+                                    {"id": 12, "project_id": 1, "path": "../evil", "size": 1}]}
+            self.results.append((path, payload))
+            return {}
+
+        def get_bytes(self, path):
+            return {"/agent/v1/uploads/10/content": b"new plan", "/agent/v1/uploads/11/content": b"PDF",
+                    "/agent/v1/uploads/12/content": b"x"}[path]
+
+    hub = Hub()
+    Syncer(hub).run()
+    root = tmp_path / "research_projects/p"
+    assert (root / "plan.md").read_text() == "new plan"
+    assert any(p.name.startswith("plan.md.bak-") and p.read_text() == "old plan" for p in root.iterdir())
+    assert (root / "materials/a.pdf").read_bytes() == b"PDF"
+    oks = {path: payload["ok"] for path, payload in hub.results}
+    assert oks == {"/agent/v1/uploads/10/result": True, "/agent/v1/uploads/11/result": True,
+                   "/agent/v1/uploads/12/result": False}
+    Syncer(hub).run()
+    assert hub.reported[-1] == {"1": {"ok": True, "error": None}}

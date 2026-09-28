@@ -13,8 +13,9 @@ from agent.config import load_config
 from agent.executor import Executor
 from agent.probes import gpu, logins, quota, system
 from agent.schedule import Schedule
+from agent.sync import Syncer
 
-INTERVALS = {"heartbeat": 30, "logins": 300, "quota": 600}
+INTERVALS = {"heartbeat": 30, "logins": 300, "quota": 600, "sync": 20}
 log = logging.getLogger("research-hub-agent")
 
 
@@ -41,6 +42,7 @@ def _job(name: str, cfg, home: Path) -> list[tuple[str, dict]]:
 
 def loop(cfg, home: Path) -> None:
     client, schedule = HubClient(cfg.hub_url, cfg.token), Schedule(INTERVALS)
+    syncer = Syncer(client)
     executor = Executor(client, home / ".local/state/research-hub", _binary("claude", home), cfg.model,
                         codex_bin=_codex_bin(cfg, home), codex_model=cfg.codex_model,
                         codex_sandbox=cfg.codex_sandbox) if cfg.execute else None
@@ -53,6 +55,9 @@ def loop(cfg, home: Path) -> None:
                 log.exception("executor tick failed")
         due = schedule.due(now)
         for name in due:
+            if name == "sync":
+                syncer.run()
+                continue
             try:
                 for path, payload in _job(name, cfg, home):
                     client.post(path, payload)

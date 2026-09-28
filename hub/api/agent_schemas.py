@@ -78,3 +78,18 @@ class MediaUpload(_Frozen):
     path: str = Field(min_length=1, max_length=300)
     content_type: Literal["image/png", "image/jpeg", "image/gif", "image/webp"]
     data_b64: str = Field(max_length=8 * 1024 * 1024)
+
+
+class WorkdirStatus(_Frozen):
+    ok: bool
+    error: str | None = Field(default=None, max_length=300)
+
+
+class Sync(_Frozen):
+    projects: dict[str, WorkdirStatus] = Field(default_factory=dict)
+
+
+class UploadResult(_Frozen):
+    ok: bool
+    written_path: str | None = Field(default=None, max_length=500)
+    error: str | None = Field(default=None, max_length=500)

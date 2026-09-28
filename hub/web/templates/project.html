@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block nav %}<a class="link" href="/">← 현황</a>{% endblock %}
+{% block main %}
+<div class="muted small">{{ node }} · {{ p.workdir }}
+  {% if p.workdir_status %}{% if p.workdir_status.ok %}<span class="pill ok">폴더 준비됨</span>{% else %}<span class="pill bad">폴더 문제: {{ p.workdir_status.error }}</span>{% endif %}{% else %}<span class="pill idle">폴더 확인 전</span>{% endif %}</div>
+<h1 class="title">{{ p.name }}</h1>
+
+<section>
+  <h2>자료 올리기</h2>
+  <div id="dropzone" class="dropzone" data-url="/projects/{{ p.slug }}/uploads" data-csrf="{{ csrf }}">
+    <p><strong>파일을 여기에 끌어다 놓으세요</strong> 또는 <label class="link-like">파일 선택<input type="file" multiple hidden></label></p>
+    <p class="muted small">plan.md 는 작업 폴더 맨 위에(기존 파일은 백업), 나머지는 materials/ 에 들어갑니다. 파일당 50MB까지.</p>
+    <ul class="upload-log"></ul>
+  </div>
+  {% if files %}
+  <table class="files"><thead><tr><th>파일</th><th>크기</th><th>상태</th></tr></thead><tbody>
+  {% for f in files %}<tr><td>{{ f.path }}</td><td>{{ (f.size / 1024)|round(1) }} KB</td>
+    <td>{% if f.status == 'delivered' %}<span class="pill ok">머신에 저장됨</span>{% elif f.status == 'failed' %}<span class="pill bad">실패</span> <span class="small">{{ f.error }}</span>{% else %}<span class="pill wait">전송 대기</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  {% endif %}
+</section>
+
+<section>
+  <h2>작업</h2>
+  {% if active %}
+  <p>진행 중: <a href="/tasks/{{ active.id }}">{{ active.title }}</a> <span class="pill {{ STATUS[active.status][2] }}">{{ STATUS[active.status][0] }}</span></p>
+  <p class="muted small">프로젝트당 작업은 하나씩 진행합니다. 끝나면 새 작업을 등록할 수 있습니다.</p>
+  {% else %}
+  <form class="card stack" method="post" action="/projects/{{ p.slug }}/tasks">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>제목<input name="title" required maxlength="200"></label>
+    <label>목표 <span class="muted small">무엇을 왜 하는지</span><textarea name="objective" rows="4" required maxlength="8000"></textarea></label>
+    <label>성공 기준 <span class="muted small">비우면 계획 단계가 제안</span><textarea name="criteria" rows="2" maxlength="4000"></textarea></label>
+    <label class="check"><input type="checkbox" name="human_review" value="1"> 사람이 판정</label>
+    <div class="actions"><button name="start" value="1">등록하고 시작</button><button class="secondary">등록만(나중에 승인)</button></div>
+  </form>
+  {% endif %}
+  {% if tasks %}<ul class="tasklist">{% for t in tasks %}<li><a href="/tasks/{{ t.id }}">#{{ t.id }} {{ t.title }}</a> <span class="pill {{ STATUS[t.status][2] }}">{{ STATUS[t.status][0] }}</span></li>{% endfor %}</ul>{% endif %}
+</section>
+
+<section>
+  <h2>설정</h2>
+  <form class="card stack" method="post" action="/projects/{{ p.slug }}/settings">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>이름<input name="name" value="{{ p.name }}" maxlength="200"></label>
+    <label>배경 지시<textarea name="context" rows="6" maxlength="20000">{{ p.context or '' }}</textarea></label>
+    <label class="check"><input type="checkbox" name="auto_ai_review" value="1" {% if p.auto_ai_review %}checked{% endif %}> 사람 판정이 필요하면 LLM이 대신 판정</label>
+    <button class="secondary">저장</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/upload.js" defer></script>{% endblock %}

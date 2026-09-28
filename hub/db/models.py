@@ -48,6 +48,7 @@ class Project(Base):
     max_parallel: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
     # When a step asks for human judgment, let an LLM fill the form instead of waiting for a person.
     auto_ai_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    workdir_status: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -194,3 +195,21 @@ class Media(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     data: Mapped[bytes] = mapped_column(LargeBinary)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Upload(Base):
+    """A file a person dropped on the project page, held until the project's node writes it into the workdir."""
+    __tablename__ = "uploads"
+    __table_args__ = (CheckConstraint(_in("status", ("pending", "delivered", "failed")), name="upload_status_valid"),
+                      Index("uploads_pending", "status", "project_id"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    path: Mapped[str] = mapped_column(Text)
+    size: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str] = mapped_column(String(64))
+    data: Mapped[bytes | None] = mapped_column(LargeBinary)
+    status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    error: Mapped[str | None] = mapped_column(Text)
+    written_path: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
