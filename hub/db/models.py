@@ -55,6 +55,7 @@ class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
         CheckConstraint(_in("status", TASK_STATUSES), name="task_status_valid"),
+        CheckConstraint("review_by IS NULL OR review_by IN ('human', 'llm')", name="task_review_by_valid"),
         # One unfinished task per project: the core "one job at a time" rule, enforced by the DB.
         Index("one_active_task_per_project", "project_id", unique=True,
               postgresql_where=text(f"NOT ({_in('status', TASK_FINISHED)})")),
@@ -68,6 +69,8 @@ class Task(Base):
     success_criteria: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16))
     node_id: Mapped[int | None] = mapped_column(ForeignKey("nodes.id"))
+    # Who fills human-review forms for this task: None follows the project setting, else "human" or "llm".
+    review_by: Mapped[str | None] = mapped_column(String(8))
     result_card: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(),

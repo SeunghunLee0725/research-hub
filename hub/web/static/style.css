@@ -97,3 +97,4 @@ table.review { border-collapse: collapse; width: 100%; font-size: 14px; }
 .review input[type=text] { width: 100%; min-width: 120px; }
 .review .body { max-height: 200px; }
 .delegate { display: block; margin: 8px 0 16px; }
+label.check { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 14px; }

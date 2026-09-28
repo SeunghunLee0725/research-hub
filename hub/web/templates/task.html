@@ -5,11 +5,12 @@
 <section>
   <div class="muted small">{{ d.project.name }} · 작업 #{{ t.id }}{% if d.node %} · {{ d.node }}{% endif %}</div>
   <h1 class="title">{{ t.title }}</h1>
-  <p><span class="pill {{ st[2] }}">{{ st[0] }}</span> <span class="muted small">{{ st[1] }}</span></p>
+  <p><span class="pill {{ st[2] }}">{{ st[0] }}</span> <span class="muted small">{{ st[1] }}</span>
+    {% if t.review_by == 'human' %}<span class="pill idle">사람이 판정</span>{% elif t.review_by == 'llm' %}<span class="pill idle">LLM 판정</span>{% endif %}</p>
   {% if t.status == 'proposed' %}
   <div class="actions card">
     <p><strong>이 작업을 시작할까요?</strong> 승인하면 계획 → 실행 → 분석 → 보고까지 자동으로 진행하고, 결과가 나오면 다시 알려 드립니다.</p>
-    <form method="post" action="/tasks/{{ t.id }}/approve-start"><input type="hidden" name="csrf" value="{{ csrf }}"><button>시작 승인</button></form>
+    <form method="post" action="/tasks/{{ t.id }}/approve-start"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="check"><input type="checkbox" name="human_review" value="1"> 사람이 판정 <span class="muted small">(판정 폼이 생기면 LLM에게 넘기지 않고 사람 입력을 기다림)</span></label> <button>시작 승인</button></form>
     <form method="post" action="/tasks/{{ t.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary">취소</button></form>
   </div>
   {% elif t.status == 'problem' %}
@@ -98,6 +99,7 @@
       <span><strong>{{ o.title }}</strong> <span class="muted small">~{{ o.est_hours }}시간</span><br><span class="small muted">{{ o.why }}</span></span></label>
     {% endfor %}
     <label class="option"><input type="radio" name="option" value="stop"><span>여기서 멈춤</span></label>
+    <label class="check"><input type="checkbox" name="human_review" value="1"> 사람이 판정 <span class="muted small">(판정 폼이 생기면 LLM에게 넘기지 않고 사람 입력을 기다림)</span></label>
     <button>선택하고 진행</button>
   </form>
   {% else %}

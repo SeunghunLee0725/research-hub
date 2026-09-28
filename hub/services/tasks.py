@@ -29,9 +29,9 @@ def _decide(db: Session, task: Task, kind: str, status: str, now: datetime, choi
     approval.status, approval.decided_at, approval.choice = status, now, choice
 
 
-def approve_start(db: Session, task: Task, now: datetime) -> None:
+def approve_start(db: Session, task: Task, now: datetime, review_by: str | None = None) -> None:
     _decide(db, task, "start", "approved", now)
-    task.status = "approved"
+    task.status, task.review_by = "approved", review_by
     db.add(Event(task_id=task.id, message="시작 승인됨"))
     db.commit()
 
@@ -40,7 +40,8 @@ def open_result_approval(db: Session, task: Task) -> None:
     db.add(Approval(task_id=task.id, kind="result", status="pending"))
 
 
-def approve_result(db: Session, task: Task, option_index: int | None, now: datetime) -> Task | None:
+def approve_result(db: Session, task: Task, option_index: int | None, now: datetime,
+                   review_by: str | None = None) -> Task | None:
     """Accept the result. With an option index, the chosen next task starts right away (one click)."""
     options = (task.result_card or {}).get("next_options", [])
     if option_index is not None and not 0 <= option_index < len(options):
@@ -56,7 +57,7 @@ def approve_result(db: Session, task: Task, option_index: int | None, now: datet
     option = options[option_index]
     follow = Task(project_id=task.project_id, parent_task_id=task.id, title=option["title"][:200],
                   objective=f"{option['why']}\n\n(이전 작업 #{task.id} \"{task.title}\"의 결과에서 이어짐)",
-                  status="approved")
+                  status="approved", review_by=review_by)
     db.add(follow)
     db.flush()
     db.add(Approval(task_id=follow.id, kind="start", status="approved", decided_at=now,

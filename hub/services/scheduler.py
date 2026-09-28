@@ -131,7 +131,8 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
         request = human.request_for_step(db, step)
         if form and request is None:
             project = db.get(Project, task.project_id)
-            request = human.create_request(db, task, step, form, by_llm=project.auto_ai_review)
+            by_llm = task.review_by == "llm" or (task.review_by is None and project.auto_ai_review)
+            request = human.create_request(db, task, step, form, by_llm=by_llm)
         if request is not None and request.status == "pending":
             if request.answered_by == "llm":
                 _new_step(db, task, step.seq + 1, "review", 1, None, usage)

@@ -48,22 +48,29 @@ def _now() -> datetime:
 Csrf = Annotated[str, Form(max_length=128)]
 
 
+HumanReview = Annotated[str | None, Form(max_length=4)]
+
+
+def _review_by(flag: str | None) -> str | None:
+    return "human" if flag else None
+
+
 @router.post("/tasks/{task_id}/approve-start")
-def approve_start(task_id: int, request: Request, db: Db, csrf: Csrf):
+def approve_start(task_id: int, request: Request, db: Db, csrf: Csrf, human_review: HumanReview = None):
     task = _guard(request, db, task_id, csrf)
-    _run(tasks.approve_start, db, task, _now())
+    _run(tasks.approve_start, db, task, _now(), _review_by(human_review))
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
 
 
 @router.post("/tasks/{task_id}/approve-result")
 def approve_result(task_id: int, request: Request, db: Db, csrf: Csrf,
-                   option: Annotated[str, Form(max_length=8)] = "stop"):
+                   option: Annotated[str, Form(max_length=8)] = "stop", human_review: HumanReview = None):
     task = _guard(request, db, task_id, csrf)
     if task.status != "review":
         raise HTTPException(409, "결과 검토 상태가 아닙니다")
     index = None if option == "stop" else int(option) if option.isdigit() else -1
     try:
-        follow = tasks.approve_result(db, task, index, _now())
+        follow = tasks.approve_result(db, task, index, _now(), _review_by(human_review))
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     return RedirectResponse(f"/tasks/{follow.id if follow else task_id}", status_code=303)
