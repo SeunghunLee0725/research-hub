@@ -199,3 +199,26 @@ def test_executor_writes_files_before_run(tmp_path):
         ex.tick(now=time.time())
     (_, payload), = [c for c in client.calls if c[0].endswith("/complete")]
     assert "LABELS" in payload["result"]["log_tail"]
+
+
+def test_executor_uploads_form_images_before_completing(tmp_path):
+    (tmp_path / "thumbs").mkdir()
+    (tmp_path / "thumbs/a.png").write_bytes(b"\x89PNG fake")
+    claude = _script(tmp_path, "claude", """
+        import json, os
+        path = os.path.join(os.getcwd(), ".research-hub/steps/1/result.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        json.dump({"summary": "s", "human_input": {"items": [
+            {"id": "a", "title": "a", "image": "thumbs/a.png"},
+            {"id": "b", "title": "b", "image": "thumbs/missing.png"},
+            {"id": "c", "title": "c", "image": "../outside.png"}]}}, open(path, "w"))
+        print(json.dumps({"is_error": False, "result": "ok"}))
+        """)
+    client = FakeClient([_step(tmp_path)])
+    ex = Executor(client, tmp_path / "state", claude_bin=claude, model="opus", use_systemd=False)
+    ex.tick(now=0)
+    ex.wait_model(timeout=10)
+    paths = [p for p, _ in client.calls]
+    uploads = [payload for p, payload in client.calls if p.endswith("/media")]
+    assert [u["path"] for u in uploads] == ["thumbs/a.png"] and uploads[0]["content_type"] == "image/png"
+    assert paths.index("/agent/v1/steps/1/media") < paths.index("/agent/v1/steps/1/complete")

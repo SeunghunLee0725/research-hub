@@ -3,12 +3,13 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from hub.api.envelope import ok
+from hub.db.models import Media
 from hub.db.session import get_db
 from hub.security import verify_password
 from hub.services import task_detail
@@ -89,3 +90,14 @@ def task_page(task_id: int, request: Request, db: Db):
     settings = request.app.state.settings
     return templates.TemplateResponse(request, "task.html", {"d": detail, "now": datetime.now(timezone.utc),
                                                              "tz": settings.timezone, "csrf": csrf_token(request)})
+
+
+@router.get("/media/{media_id}")
+def media(media_id: int, request: Request, db: Db):
+    if not is_admin(request):
+        raise HTTPException(401, "login required")
+    item = db.get(Media, media_id)
+    if item is None:
+        raise HTTPException(404, "not found")
+    return Response(item.data, media_type=item.content_type,
+                    headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=86400"})

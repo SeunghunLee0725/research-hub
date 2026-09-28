@@ -2,11 +2,16 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hub.api.agent_schemas import Complete, Heartbeat, Logins, Progress, Quota
+import base64
+import binascii
+import hashlib
+
+from hub.api.agent_schemas import Complete, Heartbeat, Logins, MediaUpload, Progress, Quota
 from hub.api.envelope import ok
-from hub.db.models import Node, Project, Step, Task
+from hub.db.models import Media, Node, Project, Step, Task
 from hub.db.session import get_db
 from hub.services import leasing, nodes
 
@@ -81,3 +86,27 @@ def complete(step_id: int, body: Complete, node: AgentNode, db: Db) -> dict:
     except leasing.NotYourStep as exc:
         raise HTTPException(409, str(exc)) from exc
     return ok({"step": step_id})
+
+
+MAX_MEDIA_BYTES = 5 * 1024 * 1024
+
+
+@router.post("/steps/{step_id}/media")
+def upload_media(step_id: int, body: MediaUpload, node: AgentNode, db: Db) -> dict:
+    step = _step(db, step_id)
+    try:
+        leasing.assert_owned(step, node)
+    except leasing.NotYourStep as exc:
+        raise HTTPException(409, str(exc)) from exc
+    try:
+        data = base64.b64decode(body.data_b64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(422, "invalid base64") from exc
+    if len(data) > MAX_MEDIA_BYTES:
+        raise HTTPException(413, "file too large")
+    existing = db.scalar(select(Media).where(Media.step_id == step_id, Media.path == body.path))
+    if existing is None:
+        db.add(Media(step_id=step_id, path=body.path, content_type=body.content_type,
+                     sha256=hashlib.sha256(data).hexdigest(), data=data))
+        db.commit()
+    return ok({"path": body.path})

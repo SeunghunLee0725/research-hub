@@ -55,9 +55,13 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
 - 사람의 판단·라벨·확인이 필요한 부분은 직접 채우지 말고, plan/implement 결과의 human_input 에 폼을 정의한다.
   작업은 사람이 웹에서 답할 때까지 멈추고, 답은 answers_path 에 JSONL(한 줄에 {{"id": 항목 id, 필드명: 값}}, 답한 항목만)로
   저장된 뒤 다음 단계가 시작된다. run 명령은 그 파일을 읽도록 작성한다. 폼 형식:
-  {{"instructions": str, "answers_path": 작업 디렉터리 기준 상대 경로, "fields": [{{"name": 소문자_이름, "label": str,
-  "type": "choice"|"text", "choices": [str]}}], "items": [{{"id": 영숫자 id, "title": str, "body": 사람이 판단할 내용
-  전체(질문·근거·AI 참고 판정 등), "priority": 1~9|null}}]}}
+  {{"instructions": str(2~3문장), "answers_path": 작업 디렉터리 기준 상대 경로, "layout": "cards"|"table",
+  "fields": [{{"name": 소문자_이름, "label": str, "type": "choice"|"text", "choices": [str]}}],
+  "items": [{{"id": 영숫자 id, "title": 짧은 제목, "body": 판단에 꼭 필요한 내용만, "priority": 1~9|null,
+  "image": 작업 디렉터리 기준 이미지 상대 경로|null}}]}}
+  사람이 읽는 양을 최소로 한다: 반복되는 안내·내부 식별자·AI 판정 전문은 body 에 넣지 않는다.
+  이미지를 보고 판단하는 작업(예: X선 판독)은 layout="table" 로 하고 각 항목 image 에 썸네일(png/jpg, 5MB 이하) 경로를
+  넣는다. 표에서는 body 가 접혀 보이므로 한두 줄로 충분하다. AI 판정은 사람의 판단을 끌고 가지 않도록 기본적으로 가린다.
 - 비밀값(.env, 토큰)을 출력하거나 파일에 복사하지 않는다.
 - 되돌리기 어려운 조작(데이터 삭제, git push, 서비스 재시작)은 하지 않는다.
 - 끝나면 반드시 아래 경로에 JSON 하나를 쓴다. 다른 형식은 실패로 처리된다.

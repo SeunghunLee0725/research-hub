@@ -41,23 +41,35 @@ class FormField(_Strict):
         return self
 
 
+def is_relative_inside(path: str) -> bool:
+    parts = path.replace("\\", "/").split("/")
+    return bool(path) and not path.startswith("/") and ".." not in parts
+
+
 class FormItem(_Strict):
     id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$")
     title: str = Field(min_length=1, max_length=300)
     body: str = Field(default="", max_length=8000)
     priority: int | None = Field(default=None, ge=1, le=9)
+    image: str | None = Field(default=None, max_length=300)
+
+    @model_validator(mode="after")
+    def _image_path(self):
+        if self.image is not None and not is_relative_inside(self.image):
+            raise ValueError("image 는 작업 디렉터리 안의 상대 경로여야 합니다")
+        return self
 
 
 class HumanInput(_Strict):
     instructions: str = Field(min_length=1, max_length=3000)
     answers_path: str = Field(min_length=1, max_length=300)
+    layout: Literal["cards", "table"] = "cards"
     fields: list[FormField] = Field(min_length=1, max_length=6)
     items: list[FormItem] = Field(min_length=1, max_length=300)
 
     @model_validator(mode="after")
     def _relative_path(self):
-        parts = self.answers_path.replace("\\", "/").split("/")
-        if self.answers_path.startswith("/") or ".." in parts:
+        if not is_relative_inside(self.answers_path):
             raise ValueError("answers_path 는 작업 디렉터리 안의 상대 경로여야 합니다")
         return self
 

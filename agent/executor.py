@@ -7,6 +7,7 @@ from pathlib import Path
 from agent.client import HubError
 from agent.steps import claude_runner, codex_runner, run_job
 from agent.steps.files import write_step_files
+from agent.steps.media import form_images
 
 log = logging.getLogger("research-hub-agent")
 PROGRESS_EVERY_S = 60
@@ -83,6 +84,9 @@ class Executor:
             status, result, error = "failed", None, "tool_error"
         finally:
             stop.set()
+        if status == "succeeded":
+            for upload in form_images(step["workdir"], result):
+                self._post(f"/agent/v1/steps/{step['id']}/media", upload)
         self._complete(step["id"], status, result, error)
 
     def model_busy(self) -> bool:

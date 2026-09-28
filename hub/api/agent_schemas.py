@@ -72,3 +72,9 @@ class Complete(_Frozen):
     status: Literal["succeeded", "failed"]
     result: dict | None = None
     error_class: str | None = Field(default=None, max_length=32)
+
+
+class MediaUpload(_Frozen):
+    path: str = Field(min_length=1, max_length=300)
+    content_type: Literal["image/png", "image/jpeg", "image/gif", "image/webp"]
+    data_b64: str = Field(max_length=8 * 1024 * 1024)

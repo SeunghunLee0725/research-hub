@@ -37,13 +37,13 @@ def lease_step(db: Session, node: Node, now: datetime) -> Step | None:
     return step
 
 
-def _owned(step: Step, node: Node) -> None:
+def assert_owned(step: Step, node: Node) -> None:
     if step.node_id != node.id or step.status not in ("leased", "running"):
         raise NotYourStep(f"step {step.id} is not leased by {node.name}")
 
 
 def record_progress(db: Session, step: Step, node: Node, message: str | None, now: datetime) -> None:
-    _owned(step, node)
+    assert_owned(step, node)
     step.status, step.lease_until, step.last_progress_at = "running", now + LEASE, now
     if message:
         db.add(Event(task_id=step.task_id, step_id=step.id, message=message[:500]))
@@ -52,7 +52,7 @@ def record_progress(db: Session, step: Step, node: Node, message: str | None, no
 
 def complete_step(db: Session, step: Step, node: Node, status: str, result: dict | None,
                   error_class: str | None, now: datetime) -> None:
-    _owned(step, node)
+    assert_owned(step, node)
     step.ended_at, step.lease_until = now, None
     if status == "succeeded":
         try:

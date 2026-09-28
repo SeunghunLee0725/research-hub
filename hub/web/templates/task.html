@@ -24,6 +24,24 @@
     <h2>사람 작업 필요</h2>
     <p class="instructions">{{ f.instructions }}</p>
     <p class="muted small">{{ a.values() | select | list | length }}/{{ f['items'] | length }}개 입력됨 · 중간 저장 후 나중에 이어서 할 수 있습니다.</p>
+    {% if f.layout == 'table' %}
+    <div class="table-wrap"><table class="review">
+      <thead><tr><th>이미지</th><th>항목</th>{% for field in f.fields %}<th>{{ field.label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for item in by_priority(f['items']) %}{% set ans = a.get(item.id, {}) %}
+        <tr class="{{ 'done' if ans else '' }}">
+          <td class="img">{% if item.image and d.media.get(item.image) %}<a href="/media/{{ d.media[item.image] }}" target="_blank"><img src="/media/{{ d.media[item.image] }}" alt="{{ item.title }}" loading="lazy"></a>{% else %}<span class="muted small">이미지 없음</span>{% endif %}</td>
+          <td class="label"><strong>{{ item.title }}</strong>{% if item.body %}<details class="small"><summary>상세</summary><div class="body">{{ item.body }}</div></details>{% endif %}</td>
+          {% for field in f.fields %}<td class="field">
+            {% if field.type == 'choice' %}
+              {% for c in field.choices %}<label class="choice"><input type="radio" name="{{ item.id }}__{{ field.name }}" value="{{ c }}" {% if ans.get(field.name) == c %}checked{% endif %}> {{ c }}</label>{% endfor %}
+            {% else %}<input type="text" name="{{ item.id }}__{{ field.name }}" value="{{ ans.get(field.name, '') }}" maxlength="2000">{% endif %}
+          </td>{% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
     {% for item in by_priority(f['items']) %}{% set ans = a.get(item.id, {}) %}
     <details class="item" {% if loop.first or not ans %}open{% endif %}>
       <summary><strong>{{ item.title }}</strong>{% if item.priority %} <span class="pill {{ 'wait' if item.priority == 1 else 'idle' }}">우선 {{ item.priority }}</span>{% endif %}{% if ans %} <span class="pill ok">입력함</span>{% endif %}</summary>
@@ -39,6 +57,7 @@
       {% endfor %}
     </details>
     {% endfor %}
+    {% endif %}
     <div class="actions">
       <button name="action" value="save" class="secondary">중간 저장</button>
       <button name="action" value="submit">제출하고 계속</button>

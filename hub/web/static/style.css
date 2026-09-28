@@ -83,3 +83,12 @@ details.item summary { cursor: pointer; }
 .field { margin: 6px 0; } label.choice { display: inline-flex; gap: 4px; margin: 4px 12px 4px 0; align-items: center; }
 textarea { width: 100%; font: inherit; padding: 6px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--bg); color: var(--text); }
+.table-wrap { overflow-x: auto; }
+table.review { border-collapse: collapse; width: 100%; font-size: 14px; }
+.review th, .review td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: middle; }
+.review th { color: var(--muted); font-weight: 600; font-size: 13px; position: sticky; top: 0; background: var(--panel); }
+.review td.img img { width: 160px; max-height: 160px; object-fit: contain; background: #000; border-radius: 4px; display: block; }
+.review tr.done { background: var(--ok-bg); }
+.review td.field label.choice { display: flex; margin: 2px 0; }
+.review input[type=text] { width: 100%; min-width: 120px; }
+.review .body { max-height: 200px; }

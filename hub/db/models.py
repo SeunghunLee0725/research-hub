@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import (BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer,
+from sqlalchemy import (BigInteger, Boolean, LargeBinary, CheckConstraint, DateTime, ForeignKey, Index, Integer,
                         String, Text, UniqueConstraint, func, text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -174,3 +174,16 @@ class HumanRequest(Base):
     status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Media(Base):
+    """Small files (e.g. X-ray thumbnails) a node uploads so a person can see them in a review form."""
+    __tablename__ = "media"
+    __table_args__ = (UniqueConstraint("step_id", "path"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    step_id: Mapped[int] = mapped_column(ForeignKey("steps.id", ondelete="CASCADE"))
+    path: Mapped[str] = mapped_column(Text)
+    content_type: Mapped[str] = mapped_column(String(32))
+    sha256: Mapped[str] = mapped_column(String(64))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
