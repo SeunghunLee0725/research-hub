@@ -38,6 +38,16 @@ def classify(returncode: int, stdout: str, stderr: str) -> str | None:
     return "tool_error"
 
 
+def model_name(meta: dict) -> str | None:
+    """The CLI reports the model it actually used under modelUsage."""
+    usage = meta.get("modelUsage")
+    if not isinstance(usage, dict) or not usage:
+        return None
+    first = next(iter(usage.values()))
+    canonical = first.get("canonicalModel") if isinstance(first, dict) else None
+    return str(canonical or next(iter(usage)))
+
+
 def run_model_step(step: dict, claude_bin: str, model: str) -> tuple[str, dict | None, str | None]:
     result_path = prepare(step["result_path"])
     try:
@@ -56,4 +66,5 @@ def run_model_step(step: dict, claude_bin: str, model: str) -> tuple[str, dict |
         return "failed", None, "no_result"
     meta = _parse(proc.stdout) or {}
     return "succeeded", {**result, "_meta": {"cost_usd": meta.get("total_cost_usd"),
-                                             "session_id": meta.get("session_id")}}, None
+                                             "session_id": meta.get("session_id"),
+                                             "model": model_name(meta)}}, None

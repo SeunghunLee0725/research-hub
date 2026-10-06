@@ -74,7 +74,7 @@ def test_project_settings_update(client, db):
     client.post("/projects/xray-new/settings", data={"csrf": csrf, "context": "새 배경", "name": "이름 변경"})
     project = db.query(Project).one()
     db.refresh(project)
-    assert (project.context, project.name, project.auto_ai_review) == ("새 배경", "이름 변경", False)
+    assert (project.context, project.name, project.auto_ai_review) == ("새 배경", "이름 변경", True)
 
 
 def test_overview_links_projects(client, db):

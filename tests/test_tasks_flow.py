@@ -132,6 +132,20 @@ def test_progress_extends_lease_and_logs_event(db, world):
     assert db.query(Event).filter_by(task_id=task.id, message="epoch 3/10").count() == 1
 
 
+def test_repeated_progress_message_is_logged_once(db, world):
+    dbb1, _, project = world
+    task = _approved_task(db, project)
+    scheduler.tick(db, NOW)
+    step = leasing.lease_step(db, dbb1, NOW)
+    for minute, message in enumerate(["케이스 대기", "케이스 대기", "케이스 대기", "시작", "케이스 대기"], 1):
+        leasing.record_progress(db, step, dbb1, message, NOW + timedelta(minutes=minute))
+    db.refresh(step)
+    assert step.lease_until == NOW + timedelta(minutes=5) + leasing.LEASE   # 같은 메시지도 임대는 연장
+    logged = [e.message for e in db.query(Event).filter_by(task_id=task.id, step_id=step.id).order_by(Event.id)
+              if e.message in ("케이스 대기", "시작")]
+    assert logged == ["케이스 대기", "시작", "케이스 대기"]
+
+
 def test_other_node_cannot_report_on_step(db, world):
     dbb1, other, project = world
     _approved_task(db, project)

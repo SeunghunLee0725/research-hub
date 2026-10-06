@@ -26,6 +26,13 @@
   <p>진행 중: <a href="/tasks/{{ active.id }}">{{ active.title }}</a> <span class="pill {{ STATUS[active.status][2] }}">{{ STATUS[active.status][0] }}</span></p>
   <p class="muted small">프로젝트당 작업은 하나씩 진행합니다. 끝나면 새 작업을 등록할 수 있습니다.</p>
   {% else %}
+  {% if last %}
+  <form class="inline" method="post" action="/projects/{{ p.slug }}/resume">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="secondary small">직전 작업 이어서 시작</button>
+    <span class="muted small">#{{ last.id }} "{{ last.title }}" 의 목표·성공 기준을 그대로 가져오고, 어디서 멈췄는지 덧붙여 제안합니다.</span>
+  </form>
+  {% endif %}
   <form class="card stack" method="post" action="/projects/{{ p.slug }}/tasks">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label>제목<input name="title" required maxlength="200"></label>

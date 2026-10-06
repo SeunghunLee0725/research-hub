@@ -13,6 +13,7 @@ from tests.conftest import ADMIN_PASSWORD, NOW
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
 FORM = {"instructions": "물체유형을 고르세요.", "answers_path": "x3a/answers.jsonl", "layout": "table",
+        "requires_human": True,
         "fields": [{"name": "object_type", "label": "물체유형", "type": "choice",
                     "choices": ["suitcase", "backpack", "unsure"]},
                    {"name": "note", "label": "메모", "type": "text"}],
@@ -33,7 +34,8 @@ def test_item_image_path_must_be_relative():
 def setup(settings, db):
     node, token = create_node(db, "spark-2588", ["claude", "codex"])
     _, other = create_node(db, "spark-dbb1", ["claude"])
-    project = Project(slug="drug", name="마약탐지", workdir="/w", node_selector=["node:spark-2588"])
+    project = Project(slug="drug", name="마약탐지", workdir="/w", node_selector=["node:spark-2588"],
+                      auto_ai_review=False)  # this project's forms are answered by a person
     db.add(project)
     db.commit()
     task = tasks.create_task(db, project, "X3a 사람 검수", "o", None)

@@ -159,3 +159,4 @@ body.mobile code { white-space: pre-wrap; word-break: break-all; }
 body.mobile .footer { text-align: center; }
 .m-node { grid-template-columns: auto 1fr auto; }
 .m-node .m-logins { grid-column: 2 / 4; color: var(--muted); }
+.draft-note{border-left:3px solid #c98a1b;background:#fff8ec;padding:8px 10px;margin:8px 0}

@@ -33,6 +33,7 @@ class FormField(_Strict):
     label: str = Field(min_length=1, max_length=100)
     type: Literal["choice", "text"]
     choices: list[str] = Field(default_factory=list, max_length=12)
+    required: bool | Literal["first"] = False  # "first": 첫 항목만 필수(예: 검수자 이름)
 
     @model_validator(mode="after")
     def _choices(self):
@@ -157,8 +158,23 @@ class ReportResult(_Strict):
     result_card: ResultCard
 
 
+class DiagnoseResult(_Strict):
+    cause: str = Field(min_length=1, max_length=2000)
+    fix: str = Field(min_length=1, max_length=2000)
+    confidence: Literal["high", "medium", "low"]
+    risk: str = Field(default="", max_length=1000)
+    retry_after_fix: bool = True
+
+
+class ApproveResult(_Strict):
+    decision: Literal["approved", "hold"]
+    reason: str = Field(min_length=1, max_length=2000)
+    next_option: int | None = Field(default=None, ge=0, le=9)
+
+
 RESULT_MODELS = {"plan": PlanResult, "implement": ImplementResult, "run": RunResult, "review": ReviewResult,
-                 "analyze": AnalyzeResult, "verify": VerifyResult, "report": ReportResult}
+                 "analyze": AnalyzeResult, "verify": VerifyResult, "report": ReportResult,
+                 "approve": ApproveResult, "diagnose": DiagnoseResult}
 
 
 def validate_result(kind: str, result: dict | None) -> dict:

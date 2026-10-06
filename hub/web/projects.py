@@ -88,8 +88,10 @@ def project_page(slug: str, request: Request, db: Db):
     task_rows = db.scalars(select(Task).where(Task.project_id == project.id).order_by(Task.id.desc())).all()
     files = db.scalars(select(Upload).where(Upload.project_id == project.id).order_by(Upload.id.desc())).all()
     active = next((t for t in task_rows if t.status not in ("done", "cancelled")), None)
+    last = task_rows[0] if task_rows and active is None else None
     return templates.TemplateResponse(request, "project.html", {
-        "p": project, "tasks": task_rows, "files": files, "active": active, "csrf": csrf_token(request),
+        "p": project, "tasks": task_rows, "files": files, "active": active, "last": last,
+        "csrf": csrf_token(request),
         "node": project.node_selector[0].removeprefix("node:") if project.node_selector else "-",
         "now": _now(), "tz": request.app.state.settings.timezone})
 
@@ -125,6 +127,19 @@ def add_task(slug: str, request: Request, db: Db, csrf: Text(128), title: Text(2
         raise HTTPException(409, "이 프로젝트에는 진행 중인 작업이 있습니다(프로젝트당 1개)") from exc
     if start:
         tasks.approve_start(db, task, _now())
+    return RedirectResponse(f"/tasks/{task.id}", status_code=303)
+
+
+@router.post("/projects/{slug}/resume")
+def resume_project(slug: str, request: Request, db: Db, csrf: Text(128)):
+    """Propose the previous task again, carrying its objective, criteria and how it stopped."""
+    _admin(request)
+    _check_csrf(request, csrf)
+    project = _project(db, slug)
+    try:
+        task = tasks.resume_from(db, project, _now())
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return RedirectResponse(f"/tasks/{task.id}", status_code=303)
 
 

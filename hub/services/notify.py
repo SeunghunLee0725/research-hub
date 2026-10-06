@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from hub.db.models import Event, Node, Notification, Project, Task
+from hub.db.models import Approval, Event, Node, Notification, Project, Task
 from hub.services.overview import login_badge, node_state
 
 log = logging.getLogger(__name__)
@@ -47,6 +47,16 @@ def _task_alerts(db: Session, base_url: str) -> list[Alert]:
             alerts.append(Alert(f"task:{task.id}:review", "review",
                                 f"🟢 결과 도착 · {project}\n\"{task.title}\"\n{conclusion}\n결과 승인: {link}", task.id))
         else:
+            fix = db.scalar(select(Approval).where(Approval.task_id == task.id, Approval.kind == "fix",
+                                                   Approval.status == "pending"))
+            if fix is not None:
+                choice = fix.choice or {}
+                alerts.append(Alert(f"task:{task.id}:fix:{fix.id}", "fix",
+                                    f"🛠 원인 확인됨 · {project}\n\"{task.title}\"\n"
+                                    f"원인: {str(choice.get('cause'))[:200]}\n"
+                                    f"제안: {str(choice.get('fix'))[:200]}\n"
+                                    f"고칠까요? {link}", task.id))
+                continue
             event = db.scalar(select(Event).where(Event.task_id == task.id, Event.level == "error")
                               .order_by(Event.id.desc()).limit(1))
             if event is not None:

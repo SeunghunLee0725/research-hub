@@ -25,10 +25,11 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <h2>사람 작업 필요</h2>
     <p class="instructions">{{ f.instructions }}</p>
-    <p class="muted small">{{ a.values() | select | list | length }}/{{ f['items'] | length }}개 입력됨 · 중간 저장 후 나중에 이어서 할 수 있습니다.</p>
+    <p class="muted small">{{ a.values() | select | list | length }}/{{ f['items'] | length }}개 입력됨 · 중간 저장 후 나중에 이어서 할 수 있습니다.{% if f.fields | selectattr('required') | list %} * 표시는 필수 칸입니다.{% endif %}</p>
+    {% if d.request.draft %}<p class="card draft-note small"><strong>AI 초안</strong>({{ d.request.draft.by }})이 채워져 있습니다. 선택값과 문장을 확인·수정한 뒤 제출하세요. 제출 기록에는 초안 작성자와 사람이 고친 항목이 남습니다.{% if d.request.draft.summary %}<br><span class="muted">{{ d.request.draft.summary }}</span>{% endif %}</p>{% endif %}
     {% if f.layout == 'table' %}
     <div class="table-wrap"><table class="review">
-      <thead><tr><th>이미지</th><th>항목</th>{% for field in f.fields %}<th>{{ field.label }}</th>{% endfor %}</tr></thead>
+      <thead><tr><th>이미지</th><th>항목</th>{% for field in f.fields %}<th>{{ field.label }}{% if field.required %} *{% endif %}</th>{% endfor %}</tr></thead>
       <tbody>
       {% for item in by_priority(f['items']) %}{% set ans = a.get(item.id, {}) %}
         <tr class="{{ 'done' if ans else '' }}">
@@ -49,7 +50,7 @@
       <summary><strong>{{ item.title }}</strong>{% if item.priority %} <span class="pill {{ 'wait' if item.priority == 1 else 'idle' }}">우선 {{ item.priority }}</span>{% endif %}{% if ans %} <span class="pill ok">입력함</span>{% endif %}</summary>
       <div class="body">{{ item.body }}</div>
       {% for field in f.fields %}
-      <div class="field"><div class="small muted">{{ field.label }}</div>
+      <div class="field"><div class="small muted">{{ field.label }}{% if field.required %} *{% endif %}</div>
         {% if field.type == 'choice' %}
           {% for c in field.choices %}<label class="choice"><input type="radio" name="{{ item.id }}__{{ field.name }}" value="{{ c }}" {% if ans.get(field.name) == c %}checked{% endif %}> {{ c }}</label>{% endfor %}
         {% else %}
@@ -65,14 +66,14 @@
       <button name="action" value="submit">제출하고 계속</button>
     </div>
   </form>
-  {% if f.requires_human %}
-  <p class="muted small delegate">연구자 본인이 결정해야 하는 항목이라 AI에게 맡길 수 없습니다.</p>
-  {% else %}
+  <form method="post" action="/tasks/{{ t.id }}/draft-ai" class="inline delegate">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="secondary small">AI 초안 채우기</button> <span class="muted small">AI가 모든 칸의 초안을 채웁니다(지금 입력한 내용은 덮어씀). 확인·수정 후 제출은 사람이 합니다.</span>
+  </form>
   <form method="post" action="/tasks/{{ t.id }}/delegate-ai" class="inline delegate">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="secondary small">AI에게 맡기기</button> <span class="muted small">이 폼 한 번만 LLM이 판정합니다(입력한 내용은 버림). 다음 폼은 다시 사람이 확인합니다.</span>
+    <button class="secondary small">AI에게 맡기기</button> <span class="muted small">이 폼을 에이전트가 판정합니다(입력한 내용은 버림). 판정한 모델이 기록에 남습니다.{% if f.requires_human %} 연구자 본인의 서명·승인으로 표시된 폼입니다.{% endif %}</span>
   </form>
-  {% endif %}
   {% elif t.status in ('approved', 'running') %}
   <form class="inline" method="post" action="/tasks/{{ t.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary small">작업 중단</button></form>
   {% endif %}
@@ -81,6 +82,24 @@
     <dt>성공 기준</dt><dd>{{ t.success_criteria or '계획 단계에서 제안' }}</dd>
   </dl>
 </section>
+
+{% if d.fix %}{% set fix = d.fix %}
+<section class="card">
+  <h2>막힌 원인과 제안</h2>
+  <dl class="wide">
+    <dt>원인</dt><dd>{{ fix.choice.cause }}</dd>
+    <dt>제안</dt><dd>{{ fix.choice.fix }}</dd>
+    <dt>영향</dt><dd>{{ fix.choice.risk or '적지 않음' }}</dd>
+    <dt>확신</dt><dd>{{ fix.choice.confidence }} · 진단 {{ fix.choice.diagnosed_by }}</dd>
+  </dl>
+  <form method="post" action="/tasks/{{ t.id }}/apply-fix" class="actions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button name="decision" value="apply">제안대로 고치기</button>
+    <button name="decision" value="decline" class="secondary">그대로 두기</button>
+  </form>
+  <p class="muted small">고치기를 고르면 막힌 단계를 제안과 함께 다시 실행합니다. 그대로 두면 작업은 멈춘 채로 남습니다.</p>
+</section>
+{% endif %}
 
 {% if t.result_card %}{% set c = t.result_card %}
 <section class="card result">

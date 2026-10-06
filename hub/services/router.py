@@ -1,6 +1,7 @@
 """Chooses Claude or Codex for each step: role-based default, quota pressure, and error fallback."""
 PREFERRED = {"plan": "claude", "implement": "codex", "run": "none", "review": "claude",
-             "analyze": "claude", "verify": "codex", "report": "claude"}
+             "analyze": "claude", "verify": "codex", "report": "claude", "approve": "claude",
+             "diagnose": "claude"}
 PRESSURE_PCT = 85.0
 SWITCHABLE = {"session_limit", "auth", "refusal", "sandbox"}
 _ALTERNATE = {"claude": "codex", "codex": "claude"}

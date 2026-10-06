@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hub.db.models import Event, HumanRequest, Media, Node, Project, Step, Task
+from hub.db.models import Approval, Event, HumanRequest, Media, Node, Project, Step, Task
 from hub.services import human
 
 STEP_LABELS = {"plan": "계획", "implement": "구현", "run": "실행", "review": "LLM 판정", "analyze": "분석", "verify": "검증", "report": "보고"}
@@ -19,6 +19,7 @@ class TaskDetail:
     request: HumanRequest | None = None
     media: dict | None = None
     reopenable: bool = False
+    fix: Approval | None = None
 
 
 def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None:
@@ -31,6 +32,8 @@ def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None
                         .order_by(Event.id.desc()).limit(event_limit)).all()
     request = human.open_request(db, task)
     media = dict(db.execute(select(Media.path, Media.id).where(Media.step_id == request.step_id)).all()) if request else {}
-    reopenable = task.status == "problem" and human.last_submitted(db, task) is not None
+    reopenable = task.status == "problem" and (request or human.last_submitted(db, task)) is not None
+    fix = db.scalar(select(Approval).where(Approval.task_id == task_id, Approval.kind == "fix",
+                                           Approval.status == "pending"))
     return TaskDetail(task, db.get(Project, task.project_id), node.name if node else None,
-                      tuple(steps), tuple(events), request, media, reopenable)
+                      tuple(steps), tuple(events), request, media, reopenable, fix)

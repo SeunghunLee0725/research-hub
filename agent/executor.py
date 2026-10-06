@@ -60,8 +60,14 @@ class Executor:
             else:
                 result = {"exit_code": status.exit_code, "duration_s": round(status.duration_s, 1),
                           "log_tail": status.log_tail, "log_path": job.log_path}
-                ok = status.exit_code == 0
-                self._complete(job.step_id, "succeeded" if ok else "failed", result, None if ok else "exit_nonzero")
+                error = "exit_nonzero" if status.exit_code != 0 else run_job.gate(job, status)
+                record = run_job.write_record(job, status, error)
+                if error in ("missing_artifacts", "missing_marker"):
+                    result["missing"] = run_job.missing_artifacts(job)
+                    result["success_marker"] = job.success_marker
+                if record is not None:
+                    result["run_result"] = str(record.relative_to(job.workdir))
+                self._complete(job.step_id, "failed" if error else "succeeded", result, error)
             run_job.forget(job, self._state)
             self._progress_at.pop(job.step_id, None)
 

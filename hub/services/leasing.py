@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import cast, or_, select
+from sqlalchemy import and_, cast, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,11 @@ def lease_step(db: Session, node: Node, now: datetime) -> Step | None:
     step = db.scalar(
         select(Step).join(Task, Task.id == Step.task_id).join(Project, Project.id == Task.project_id)
         .where(Step.status == "pending", or_(Step.not_before.is_(None), Step.not_before <= now),
-               Task.status == "running", or_(Task.node_id.is_(None), Task.node_id == node.id),
+               # A task at its result gate is not running, but its approve step still needs a node.
+               or_(Task.status == "running",
+                   and_(Task.status == "review", Step.kind == "approve"),
+                   and_(Task.status == "problem", Step.kind == "diagnose")),
+               or_(Task.node_id.is_(None), Task.node_id == node.id),
                Project.node_selector.op("<@")(cast(labels, JSONB)), Step.model.in_(models))
         .order_by(Step.id).limit(1).with_for_update(of=Step, skip_locked=True))
     if step is None:
@@ -45,8 +49,10 @@ def assert_owned(step: Step, node: Node) -> None:
 def record_progress(db: Session, step: Step, node: Node, message: str | None, now: datetime) -> None:
     assert_owned(step, node)
     step.status, step.lease_until, step.last_progress_at = "running", now + LEASE, now
-    if message:
-        db.add(Event(task_id=step.task_id, step_id=step.id, message=message[:500]))
+    message = (message or "")[:500]
+    last = db.scalar(select(Event.message).where(Event.step_id == step.id).order_by(Event.id.desc()).limit(1))
+    if message and message != last:  # agent 는 1분마다 로그 마지막 줄을 보낸다 — 같은 줄은 한 번만 기록
+        db.add(Event(task_id=step.task_id, step_id=step.id, message=message))
     db.commit()
 
 

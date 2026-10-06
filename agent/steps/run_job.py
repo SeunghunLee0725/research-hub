@@ -9,10 +9,11 @@ import shutil
 import signal
 import subprocess
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 TAIL_BYTES = 4000
+LOG_COPY_BYTES = 2_000_000
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,9 @@ class Job:
     timeout_s: float
     pid: int | None
     unit: str | None
+    expected_artifacts: list = field(default_factory=list)
+    success_marker: str | None = None
+    command: str = ""
 
 
 @dataclass(frozen=True)
@@ -45,7 +49,8 @@ def launch(step: dict, state_dir: Path, use_systemd: bool = True) -> Job:
     log_path, exit_path = run_dir / "log.txt", run_dir / "exit_code"
     exit_path.unlink(missing_ok=True)
     script = run_dir / "run.sh"
-    script.write_text(f"#!/bin/bash\ncd {shlex.quote(step['workdir'])} || exit 97\n"
+    # pipefail: a command ending in `| tee log` would otherwise report tee's success.
+    script.write_text(f"#!/bin/bash\nset -o pipefail\ncd {shlex.quote(step['workdir'])} || exit 97\n"
                       f"( {step['command']}\n) > {shlex.quote(str(log_path))} 2>&1\n"
                       f"echo $? > {shlex.quote(str(exit_path))}.tmp && mv {shlex.quote(str(exit_path))}.tmp "
                       f"{shlex.quote(str(exit_path))}\n")
@@ -59,7 +64,9 @@ def launch(step: dict, state_dir: Path, use_systemd: bool = True) -> Job:
         pid = subprocess.Popen([str(script)], start_new_session=True, stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL).pid
     job = Job(step["id"], step["workdir"], str(log_path), str(exit_path), time.time(),
-              float(step["timeout_hours"]) * 3600, pid, unit)
+              float(step["timeout_hours"]) * 3600, pid, unit,
+              list(step.get("expected_artifacts") or []), step.get("success_marker"),
+              str(step["command"]))
     _jobs_dir(state_dir).mkdir(parents=True, exist_ok=True)
     (_jobs_dir(state_dir) / f"{job.step_id}.json").write_text(json.dumps(asdict(job)))
     return job
@@ -94,6 +101,62 @@ def poll(job: Job) -> JobStatus:
     if job.pid is not None and not _alive(job.pid):
         return JobStatus("done", 98, _tail(job.log_path), duration)  # vanished without an exit code
     return JobStatus("running", None, _tail(job.log_path), duration)
+
+
+def gate(job: Job, status: JobStatus) -> str | None:
+    """What the step promised to leave behind. Returns the failure class, or None when it kept its word."""
+    if missing_artifacts(job):
+        return "missing_artifacts"
+    if job.success_marker and not _log_contains(job.log_path, job.success_marker):
+        return "missing_marker"
+    return None
+
+
+def missing_artifacts(job: Job) -> list[str]:
+    return [name for name in job.expected_artifacts
+            if not (Path(job.workdir) / name.rstrip("/")).exists()]
+
+
+def write_record(job: Job, status: JobStatus, gate_error: str | None,
+                 log_limit: int = LOG_COPY_BYTES) -> Path | None:
+    """Leave the exit code, the marker check and a log copy in the work directory.
+    A verify step can only recompute from files it can reach, and the real log lives in agent state."""
+    folder = Path(job.workdir) / ".research-hub/steps" / str(job.step_id)
+    record = {
+        "step_id": job.step_id, "command": job.command, "exit_code": status.exit_code,
+        "duration_s": round(status.duration_s, 1), "state": status.state,
+        "expected_artifacts": list(job.expected_artifacts),
+        "missing_artifacts": missing_artifacts(job),
+        "success_marker": job.success_marker,
+        "marker_found": None if not job.success_marker else _log_contains(job.log_path, job.success_marker),
+        "gate": gate_error, "agent_log_path": job.log_path,
+    }
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "run_result.json").write_text(json.dumps(record, ensure_ascii=False, indent=1) + "\n",
+                                                encoding="utf-8")
+        (folder / "run.log").write_bytes(_tail_bytes(job.log_path, log_limit))
+    except OSError:
+        return None
+    return folder / "run_result.json"
+
+
+def _tail_bytes(path: str, limit: int) -> bytes:
+    try:
+        with open(path, "rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            stream.seek(max(0, stream.tell() - limit))
+            return stream.read()
+    except OSError:
+        return b""
+
+
+def _log_contains(log_path: str, needle: str) -> bool:
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as stream:
+            return any(needle in line for line in stream)
+    except OSError:
+        return False
 
 
 def _alive(pid: int) -> bool:

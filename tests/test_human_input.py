@@ -1,3 +1,4 @@
+import json
 import re
 
 import pytest
@@ -18,6 +19,7 @@ FORM = {
     "items": [{"id": "G003-28325093", "title": "G003 · PMID:28325093", "body": "질문: PAM 기전?\n초록: ...",
                "priority": 1},
               {"id": "G020-1", "title": "G020 · PMID:1", "body": "초록", "priority": 2}],
+    "requires_human": True,
 }
 PLAN = {"summary": "s", "approach": ["a"], "needs_implement": False,
         "run": {"command": "python score.py", "timeout_hours": 1}, "human_input": FORM}
@@ -59,7 +61,8 @@ def test_parse_form_answers_rejects_invalid_choice():
 @pytest.fixture()
 def world(db):
     node = Node(name="spark-dbb1", token_hash="a" * 64, labels=["claude", "codex"])
-    project = Project(slug="p", name="플라즈마", workdir="/w", node_selector=["node:spark-dbb1"])
+    project = Project(slug="p", name="플라즈마", workdir="/w", node_selector=["node:spark-dbb1"],
+                      auto_ai_review=False)  # this project's forms are answered by a person
     db.add_all([node, project])
     db.commit()
     task = tasks.create_task(db, project, "사람 판정", "o", None)
@@ -93,7 +96,9 @@ def test_step_requesting_input_pauses_task_until_submitted(db, world):
     scheduler.tick(db, NOW)
     run = leasing.lease_step(db, node, NOW)
     assert run.kind == "run"
-    assert run.input["files"] == {".research-hub/answers/human_labels.jsonl": '{"id": "G003-28325093", "human_label": "ANSWERS"}\n'}
+    files = run.input["files"]
+    assert files[".research-hub/answers/human_labels.jsonl"] == '{"id": "G003-28325093", "human_label": "ANSWERS"}\n'
+    assert json.loads(files[".research-hub/answers/human_labels.jsonl.provenance.json"])["submitted_by"] == "human"
 
 
 def test_waiting_human_blocks_new_task_and_alerts(db, world):
@@ -153,3 +158,21 @@ def test_web_form_handles_items_without_priority(client, db, world):
     scheduler.tick(db, NOW)
     page = client.get(f"/tasks/{task.id}").text
     assert page.index("B 항목") < page.index("A 항목")
+
+
+def test_a_person_submitting_a_delegated_form_is_recorded_as_human(db, world):
+    """The form may have been handed to the agent, but this submission came from the researcher."""
+    node, task = world
+    _plan_with_form(db, node)
+    request = db.query(HumanRequest).one()
+    request.answered_by, request.answered_by_model = "llm", "claude/claude-opus-5-5"
+    db.commit()
+
+    human.submit(db, request, {"G003-28325093": {"human_label": "ANSWERS"},
+                               "G020-1": {"human_label": "OFF_TOPIC"}}, NOW)
+
+    db.refresh(request)
+    assert request.answered_by == "human"
+    assert request.answered_by_model is None
+    record = json.loads(human.submitted_files(db, task)[FORM["answers_path"] + ".provenance.json"])
+    assert record["submitted_by"] == "human"

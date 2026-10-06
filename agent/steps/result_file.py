@@ -4,7 +4,7 @@ from pathlib import Path
 
 def prepare(path: str) -> Path:
     """Remove any previous attempt's result so a stale file is never mistaken for this run's output."""
-    result_path = Path(path)
+    result_path = Path(path).expanduser()
     result_path.unlink(missing_ok=True)
     result_path.parent.mkdir(parents=True, exist_ok=True)
     return result_path

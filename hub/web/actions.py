@@ -95,7 +95,10 @@ async def human_input(task_id: int, request: Request, db: Db):
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     action = human.submit if data.get("action") == "submit" else human.save
-    action(db, pending, answers, _now())
+    try:
+        action(db, pending, answers, _now())
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
 
 
@@ -109,11 +112,30 @@ def delegate_ai(task_id: int, request: Request, db: Db, csrf: Csrf):
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
 
 
+@router.post("/tasks/{task_id}/draft-ai")
+def draft_ai(task_id: int, request: Request, db: Db, csrf: Csrf):
+    task = _guard(request, db, task_id, csrf)
+    pending = human.open_request(db, task)
+    if pending is None or task.status != "waiting_human":
+        raise HTTPException(409, "입력을 기다리는 항목이 없습니다")
+    _run(human.request_draft, db, pending, _now())
+    return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+
+
+@router.post("/tasks/{task_id}/apply-fix")
+def apply_fix(task_id: int, request: Request, db: Db, csrf: Csrf,
+              decision: Annotated[str, Form(max_length=8)] = "apply"):
+    task = _guard(request, db, task_id, csrf)
+    action = tasks.apply_fix if decision == "apply" else tasks.decline_fix
+    _run(action, db, task, _now())
+    return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+
+
 @router.post("/tasks/{task_id}/reopen-input")
 def reopen_input(task_id: int, request: Request, db: Db, csrf: Csrf):
     task = _guard(request, db, task_id, csrf)
-    submitted = human.last_submitted(db, task)
-    if submitted is None:
+    form = human.open_request(db, task) or human.last_submitted(db, task)
+    if form is None:
         raise HTTPException(409, "다시 열 입력 폼이 없습니다")
-    _run(human.reopen, db, submitted, _now())
+    _run(human.reopen, db, form, _now())
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
