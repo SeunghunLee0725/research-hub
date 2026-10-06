@@ -1,4 +1,4 @@
-"""막힌 작업을 에이전트가 스스로 진단하고, 고칠지 말지는 연구자가 고른다."""
+"""막힌 작업을 에이전트가 스스로 진단하고 고친다. 에이전트에게 맡기지 않은 프로젝트만 연구자가 고른다."""
 import re
 
 import pytest
@@ -65,8 +65,14 @@ def test_a_stuck_task_gets_a_diagnose_step(db, world):
     assert "No module named pytest" in step.input["prompt"]
 
 
+def _ask_the_researcher(db, project):
+    project.auto_approve = False
+    db.commit()
+
+
 def test_the_diagnosis_waits_for_the_researcher_to_choose(db, world):
-    node, _, task = world
+    node, project, task = world
+    _ask_the_researcher(db, project)
     _break_the_run(db, node, task)
     step = _diagnose(db, node)
 
@@ -81,7 +87,8 @@ def test_the_diagnosis_waits_for_the_researcher_to_choose(db, world):
 
 
 def test_one_diagnosis_per_problem_not_a_loop(db, world):
-    node, _, task = world
+    node, project, task = world
+    _ask_the_researcher(db, project)
     _break_the_run(db, node, task)
     _diagnose(db, node)
     for _ in range(3):
@@ -90,7 +97,8 @@ def test_one_diagnosis_per_problem_not_a_loop(db, world):
 
 
 def test_approving_the_fix_restarts_the_task(settings, db, world):
-    node, _, task = world
+    node, project, task = world
+    _ask_the_researcher(db, project)
     _break_the_run(db, node, task)
     _diagnose(db, node)
 
@@ -111,7 +119,8 @@ def test_approving_the_fix_restarts_the_task(settings, db, world):
 
 
 def test_declining_leaves_the_task_alone(settings, db, world):
-    node, _, task = world
+    node, project, task = world
+    _ask_the_researcher(db, project)
     _break_the_run(db, node, task)
     _diagnose(db, node)
 
@@ -158,7 +167,8 @@ def _no_tick_errors(db, task):
 
 
 def test_a_fix_for_a_form_the_agent_cannot_fill_hands_it_to_the_person(db, world):
-    node, _, task = world
+    node, project, task = world
+    _ask_the_researcher(db, project)
     scheduler.tick(db, NOW)
     plan = leasing.lease_step(db, node, NOW)
     leasing.complete_step(db, plan, node, "succeeded", {**PLAN, "human_input": FORM}, None, NOW)
@@ -183,7 +193,6 @@ def test_the_step_rerun_after_a_fix_carries_the_task_on(db, world):
     scheduler.tick(db, NOW)
     _fail_until_problem(db, node, task, "plan")
     _diagnose(db, node)
-    tasks.apply_fix(db, task, NOW)
     rerun = leasing.lease_step(db, node, NOW)
     assert rerun.kind == "plan"
     leasing.complete_step(db, rerun, node, "succeeded", PLAN, None, NOW)
@@ -191,3 +200,61 @@ def test_the_step_rerun_after_a_fix_carries_the_task_on(db, world):
     assert leasing.lease_step(db, node, NOW).kind == "run"
     assert _no_tick_errors(db, task)
 
+
+def test_the_agent_applies_a_confident_fix_itself(db, world):
+    node, _, task = world
+    _break_the_run(db, node, task)
+    _diagnose(db, node)
+
+    db.refresh(task)
+    assert task.status == "running"
+    row = db.query(Approval).filter(Approval.kind == "fix").one()
+    assert row.status == "approved" and row.decided_by == "agent:claude/claude-opus-5-5"
+    latest = db.query(Step).filter(Step.task_id == task.id).order_by(Step.id.desc()).first()
+    assert latest.kind == "implement"
+    assert DIAGNOSIS["fix"] in latest.input["prompt"] and "에이전트가 적용" in latest.input["prompt"]
+    assert "연구자가 승인했다" not in latest.input["prompt"]
+
+
+def test_a_low_confidence_fix_waits_for_the_researcher(db, world):
+    node, _, task = world
+    _break_the_run(db, node, task)
+    _diagnose(db, node, {**DIAGNOSIS, "confidence": "low"})
+
+    db.refresh(task)
+    assert task.status == "problem"
+    assert db.query(Approval).filter(Approval.kind == "fix").one().status == "pending"
+
+
+def test_the_agent_stops_after_two_fixes_that_did_not_help(db, world):
+    node, _, task = world
+    scheduler.tick(db, NOW)
+    for _ in range(2):
+        _fail_until_problem(db, node, task, "plan")
+        _diagnose(db, node)
+        db.refresh(task)
+        assert task.status == "running"
+    _fail_until_problem(db, node, task, "plan")
+    _diagnose(db, node)
+
+    db.refresh(task)
+    assert task.status == "problem"
+    rows = db.query(Approval).filter(Approval.kind == "fix").order_by(Approval.id).all()
+    assert [r.status for r in rows] == ["approved", "approved", "pending"]
+    assert any("연구자 확인" in e.message for e in db.query(Event).filter(Event.task_id == task.id))
+
+
+def test_the_agent_retries_a_form_it_could_not_fill(db, world):
+    node, _, task = world
+    scheduler.tick(db, NOW)
+    plan = leasing.lease_step(db, node, NOW)
+    leasing.complete_step(db, plan, node, "succeeded", {**PLAN, "human_input": FORM}, None, NOW)
+    scheduler.tick(db, NOW)
+    _fail_until_problem(db, node, task, "review")
+    _diagnose(db, node)
+
+    db.refresh(task)
+    assert task.status == "running"
+    rerun = leasing.lease_step(db, node, NOW)
+    assert rerun.kind == "review" and DIAGNOSIS["fix"] in rerun.input["prompt"]
+    assert _no_tick_errors(db, task)

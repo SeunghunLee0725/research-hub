@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from hub.db.models import Approval, Event, HumanRequest, Project, QuotaSnapshot, Step, Task
@@ -148,7 +148,7 @@ def _diagnose_problems(db: Session, now: datetime, usage: dict[str, float | None
             continue
         if latest.kind == "diagnose":
             if latest.status == "succeeded":
-                _open_fix_approval(db, task, latest, now)
+                _guarded(db, task, "수정 제안 처리", lambda t=task, s=latest: _open_fix_approval(db, t, s, now))
             continue
         if db.scalar(select(Step).where(Step.task_id == task.id, Step.kind == "diagnose",
                                         Step.seq > latest.seq - 1).limit(1)) is not None:
@@ -157,14 +157,37 @@ def _diagnose_problems(db: Session, now: datetime, usage: dict[str, float | None
                  lambda t=task, s=latest: _new_step(db, t, s.seq + 1, "diagnose", 1, None, usage))
 
 
+AGENT_FIX_LIMIT = 2  # fixes the agent applies to one task before a person has to look
+
+
 def _open_fix_approval(db: Session, task: Task, step: Step, now: datetime) -> None:
     result = step.output or {}
+    diagnosed_by = f"agent:{_model_label(step)}"
     db.add(Approval(task_id=task.id, kind="fix", status="pending",
                     choice={**{k: result.get(k) for k in ("cause", "fix", "confidence", "risk",
                                                           "retry_after_fix")},
-                            "diagnosed_by": f"agent:{_model_label(step)}", "step_id": step.id}))
+                            "diagnosed_by": diagnosed_by, "step_id": step.id}))
+    reason = _why_the_researcher_decides(db, task, result)
+    if reason is None:
+        db.add(Event(task_id=task.id, step_id=step.id,
+                     message=f"원인: {str(result.get('cause'))[:300]} — 에이전트가 제안대로 고친다"))
+        db.flush()
+        task_service.apply_fix(db, task, now, decided_by=diagnosed_by)
+        return
     db.add(Event(task_id=task.id, step_id=step.id,
-                 message=f"원인: {str(result.get('cause'))[:300]} — 제안대로 고칠지 연구자 확인 대기"))
+                 message=f"원인: {str(result.get('cause'))[:300]} — {reason}, 연구자 확인 대기"))
+
+
+def _why_the_researcher_decides(db: Session, task: Task, result: dict) -> str | None:
+    if not db.get(Project, task.project_id).auto_approve:
+        return "에이전트에게 맡기지 않은 프로젝트"
+    if result.get("confidence") not in ("high", "medium"):
+        return "진단 확신이 낮음"
+    applied = db.scalar(select(func.count()).select_from(Approval).where(
+        Approval.task_id == task.id, Approval.kind == "fix", Approval.decided_by.like("agent:%")))
+    if applied >= AGENT_FIX_LIMIT:
+        return f"에이전트 수정 {applied}회로도 풀리지 않음"
+    return None
 
 
 def _apply_agent_approval(db: Session, task: Task, step: Step, now: datetime,
@@ -253,11 +276,18 @@ def _review_answered_by_person(db: Session, task: Task, step: Step, usage: dict[
     return True
 
 
-def _stale_form(db: Session, task: Task) -> bool:
-    """A running task never waits on a person's form; if one is left pending, stop loudly instead of idling."""
+def _stale_form(db: Session, task: Task, usage: dict[str, float | None]) -> bool:
+    """A running task never waits on a person's form. An agent-run project gives a leftover form to the agent;
+    otherwise stop loudly instead of idling."""
     request = human.open_request(db, task)
     if request is None or request.answered_by != "human":
         return False
+    if db.get(Project, task.project_id).auto_approve:
+        request.answered_by, request.answers, request.draft, request.answered_by_model = "llm", {}, None, None
+        _new_step(db, task, _latest_step(db, task).seq + 1, "review", 1, None, usage)
+        db.add(Event(task_id=task.id, message=f"사람 입력 폼(요청 {request.id})이 남아 있었다 — "
+                                              "에이전트에게 맡긴 프로젝트라 에이전트가 채운다"))
+        return True
     task.status = "problem"
     db.add(Event(task_id=task.id, level="error",
                  message=f"진행 중인데 사람 입력 폼(요청 {request.id}, step {request.step_id})이 "
@@ -306,7 +336,7 @@ def _advance(db: Session, task: Task, now: datetime, usage: dict[str, float | No
     step = _latest_pipeline_step(db, task)
     if step is None or step.status in ("pending", "leased", "running"):
         return
-    if _stale_form(db, task):
+    if _stale_form(db, task, usage):
         return
     if step.status == "succeeded" and step.kind == "approve":
         _apply_agent_approval(db, task, step, now, usage)

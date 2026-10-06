@@ -234,7 +234,9 @@ def test_reopen_hands_the_pending_form_to_the_person_not_an_earlier_one(settings
 
 
 def test_a_stale_pending_form_stops_the_task_loudly_instead_of_idling(db, world):
-    node, _, task = world
+    node, project, task = world
+    project.auto_approve = False
+    db.commit()
     first, second = _second_form_review_fails(db, node, task)
     human.reopen(db, first, NOW)  # the earlier form reopened while the second one was still pending
     second.answered_by = "human"
@@ -244,3 +246,22 @@ def test_a_stale_pending_form_stops_the_task_loudly_instead_of_idling(db, world)
     assert task.status == "problem"
     assert db.query(Event).filter(Event.task_id == task.id, Event.level == "error",
                                   Event.message.contains(f"요청 {first.id}")).count() == 1
+
+
+def test_an_agent_run_project_hands_a_stale_person_form_to_the_agent(db, world):
+    node, _, task = world
+    first, second = _second_form_review_fails(db, node, task)
+    human.reopen(db, first, NOW)
+    second.answered_by = "human"
+    human.submit(db, second, {"G003P1": {"human_label": "PARTIAL"}, "G003P2": {}}, NOW)
+    scheduler.tick(db, NOW)
+
+    db.refresh(task)
+    db.refresh(first)
+    assert task.status == "running" and first.answered_by == "llm"
+    assert db.query(Event).filter(Event.task_id == task.id, Event.message.contains("에이전트가 채운다")).count() == 1
+    review = _answer_review(db, node)
+    assert review.kind == "review"
+    db.refresh(first)
+    assert first.status == "submitted" and first.answered_by == "llm"
+    assert leasing.lease_step(db, node, NOW) is not None

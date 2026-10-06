@@ -157,10 +157,11 @@ def apply_fix(db: Session, task: Task, now: datetime, decided_by: str = "human")
         raise ValueError("재시도할 단계가 없습니다")
     note = (f"\n\n## 이번에 고칠 것 (진단: {plan.get('diagnosed_by')})\n"
             f"원인: {plan.get('cause')}\n제안: {plan.get('fix')}\n"
-            f"이 제안은 연구자가 승인했다. 제안대로 고친 뒤 이 단계를 다시 수행한다.")
+            f"{_fix_decider(decided_by)} 제안대로 고친 뒤 이 단계를 다시 수행한다.")
     task.status = "running"
     last = db.scalar(select(Step).where(Step.task_id == task.id).order_by(Step.seq.desc()).limit(1))
-    request = human.open_request(db, task) if failed.kind == "review" else None
+    # A person who approves a fix for a failed form takes the form; the agent tries the form again instead.
+    request = human.open_request(db, task) if failed.kind == "review" and decided_by == "human" else None
     if request is not None:
         # The agent could not fill this form; another agent pass would fail the same way.
         request.answered_by, request.draft, request.answered_by_model = "human", None, None
@@ -181,6 +182,12 @@ def apply_fix(db: Session, task: Task, now: datetime, decided_by: str = "human")
         db.add(Event(task_id=task.id,
                      message="수정 제안 승인 — 구현 단계에서 고친 뒤 실행을 다시 시도한다"))
     db.commit()
+
+
+def _fix_decider(decided_by: str) -> str:
+    if decided_by == "human":
+        return "이 제안은 연구자가 승인했다."
+    return f"이 제안은 에이전트가 적용하기로 했다({decided_by})."
 
 
 def decline_fix(db: Session, task: Task, now: datetime, decided_by: str = "human") -> None:
