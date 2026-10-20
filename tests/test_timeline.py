@@ -46,22 +46,44 @@ def _seed(db):
 
 def test_axis_scales_ticks_to_the_span():
     day = build_axis(NOW - 24 * H, NOW, NOW, TZ)
-    assert day.ticks[0].label.endswith("시") or day.ticks[0].major
-    assert 10 <= len(day.ticks) <= 14
-    assert abs(day.now_pct - 100 * 24 / 24) < 0.01
+    assert 12 <= len(day.ticks) <= 26
+    assert abs(day.now_pct - 100) < 0.01
+    assert day.width_px >= 2000  # an hour must be wide enough to read step segments
+    week = build_axis(NOW - timedelta(days=7), NOW, NOW, TZ)
+    assert week.width_px >= 7 * 300
+    assert any(t.label == "12시" for t in week.ticks)  # quarter-day marks inside each day
     month = build_axis(NOW - timedelta(days=30), NOW, NOW, TZ)
-    majors = [t for t in month.ticks if t.major]
-    assert 4 <= len(majors) <= 6  # one per Monday
-    assert month.width_px > day.width_px
+    assert sum(t.major for t in month.ticks) == 5  # one per Monday
+
+
+def test_axis_labels_the_partial_first_day():
+    axis = build_axis(NOW - timedelta(days=7), NOW, NOW, TZ)  # starts at 12:00 KST, mid-day
+    first = axis.ticks[0]
+    assert first.left == 0 and "/" in first.label
 
 
 def test_window_for_named_ranges():
     start, end = timeline.window("1", NOW, earliest=None)
-    assert end > NOW and NOW - start == timedelta(days=1)
+    assert NOW - start == timedelta(days=1) and end - NOW >= 2 * H
+    start, end = timeline.window("7", NOW, earliest=None)
+    assert end - NOW >= timedelta(days=1)  # the future side is drawn too, not cut at "now"
     start, _ = timeline.window("all", NOW, earliest=NOW - timedelta(days=500))
     assert NOW - start == timedelta(days=365)  # capped so one stray date cannot stretch the axis
     start, _ = timeline.window("bogus", NOW, earliest=None)
     assert NOW - start == timedelta(days=7)
+
+
+def test_all_range_reaches_the_last_project_end():
+    _, end = timeline.window("all", NOW, earliest=NOW - timedelta(days=10), latest=NOW + timedelta(days=90))
+    assert end >= NOW + timedelta(days=90)
+    _, end = timeline.window("all", NOW, earliest=None, latest=NOW + timedelta(days=5000))
+    assert end - NOW <= timedelta(days=366)
+
+
+def test_latest_project_end(db):
+    _seed(db)
+    assert timeline.latest_project_end(db, None, TZ).date() == date(2027, 1, 1)
+    assert timeline.latest_project_end(db, "short", TZ).date() == date(2026, 10, 4)
 
 
 def test_gantt_groups_by_kind_and_places_step_segments(db):

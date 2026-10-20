@@ -199,7 +199,7 @@ input[type=date] { width: 100%; }
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
 /* ---------- gantt ---------- */
-.gantt-wrap { --left-w: 300px; overflow: auto; max-height: calc(100vh - 190px); background: var(--panel);
+.gantt-wrap { --left-w: 300px; overflow-x: auto; background: var(--panel);
   border: 1px solid var(--line); border-radius: 10px; }
 .gantt { position: relative; width: calc(var(--left-w) + var(--chart-w)); min-width: 100%; }
 .g-grid { position: absolute; top: 0; bottom: 0; left: var(--left-w); width: calc(100% - var(--left-w)); pointer-events: none; z-index: 0; }

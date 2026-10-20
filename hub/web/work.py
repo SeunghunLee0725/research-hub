@@ -46,7 +46,11 @@ def gantt(request: Request, db: Db):
     kind = _kind(request)
     span = _choice(request, "range", tuple(k for k, _ in RANGE_LABELS), timeline.DEFAULT_RANGE)
     view = _choice(request, "view", ("project", "agent"), "project")
-    start, end = timeline.window(span, now, timeline.earliest_task(db) if span == "all" else None)
+    if span == "all":
+        start, end = timeline.window(span, now, timeline.earliest_task(db),
+                                     timeline.latest_project_end(db, kind, settings.timezone))
+    else:
+        start, end = timeline.window(span, now, None)
     context = {"now": now, "tz": settings.timezone, "kind": kind, "range": span, "view": view,
                "ranges": RANGE_LABELS, "axis": build_axis(start, end, now, settings.timezone)}
     if view == "agent" and not is_mobile(request):

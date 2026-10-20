@@ -3,13 +3,15 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from hub.db.models import PROJECT_KINDS, TASK_FINISHED, Node, Project, Step, Task
 from hub.services.gantt_axis import pct_between
 
 RANGES = {"1": 1, "7": 7, "30": 30}
+# How far past "now" each range draws, so running work and what comes next are not cut at the edge.
+AHEAD = {"1": timedelta(hours=3), "7": timedelta(days=1), "30": timedelta(days=3), "all": timedelta(days=3)}
 DEFAULT_RANGE = "7"
 ALL_CAP_DAYS = 365  # one task with a wrong date must not stretch the axis over years
 AGENTS = ("claude", "codex", "none")
@@ -106,18 +108,25 @@ class AgentLanes:
     legend: tuple[tuple[str, int], ...]
 
 
-def window(key: str, now: datetime, earliest: datetime | None) -> tuple[datetime, datetime]:
+def window(key: str, now: datetime, earliest: datetime | None,
+           latest: datetime | None = None) -> tuple[datetime, datetime]:
     if key == "all":
         days = (now - earliest).days + 1 if earliest else RANGES[DEFAULT_RANGE]
         days = max(1, min(ALL_CAP_DAYS, days))
-    else:
-        days = RANGES.get(key, RANGES[DEFAULT_RANGE])
-    span = timedelta(days=days)
-    return now - span, now + span * 0.04
+        end = max(now + AHEAD["all"], min(latest or now, now + timedelta(days=ALL_CAP_DAYS)))
+        return now - timedelta(days=days), end
+    key = key if key in RANGES else DEFAULT_RANGE
+    return now - timedelta(days=RANGES[key]), now + AHEAD[key]
 
 
 def earliest_task(db: Session) -> datetime | None:
     return db.scalar(select(Task.created_at).order_by(Task.created_at).limit(1))
+
+
+def latest_project_end(db: Session, kind: str | None, tz_name: str) -> datetime | None:
+    query = select(func.max(Project.ends_on))
+    last = db.scalar(query.where(Project.kind == kind) if kind else query)
+    return _day_start(last + timedelta(days=1), ZoneInfo(tz_name)) if last else None
 
 
 def model_name(step: Step) -> str | None:
