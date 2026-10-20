@@ -51,6 +51,7 @@ class ProjectView:
     step_status: str | None = None
     step_started_at: datetime | None = None
     kind: str = "research"
+    home_node: str | None = None
     starts_on: date | None = None
     ends_on: date | None = None
 
@@ -102,7 +103,7 @@ def _project_views(db: Session) -> tuple[ProjectView, ...]:
     active = (select(Task.id, Task.project_id, Task.title, Task.status, Task.updated_at, Node.name.label("node"))
               .outerjoin(Node, Node.id == Task.node_id)
               .where(Task.status.not_in(TASK_FINISHED)).subquery())
-    rows = db.execute(select(Project.slug, Project.name, Project.kind, Project.starts_on, Project.ends_on,
+    rows = db.execute(select(Project.slug, Project.name, Project.kind, Project.starts_on, Project.ends_on, Project.node_selector,
                              active.c.id, active.c.title, active.c.status, active.c.node, active.c.updated_at)
                       .outerjoin(active, active.c.project_id == Project.id)
                       .order_by(Project.name)).all()
@@ -116,7 +117,8 @@ def _project_view(db: Session, r) -> ProjectView:
                        updated_at=r.updated_at, task_id=r.id, last_event=event.message if event else None,
                        last_event_at=event.at if event else None, step_kind=step.kind if step else None,
                        step_status=step.status if step else None, step_started_at=step.started_at if step else None,
-                       kind=r.kind, starts_on=r.starts_on, ends_on=r.ends_on)
+                       kind=r.kind, starts_on=r.starts_on, ends_on=r.ends_on,
+                       home_node=next((x.removeprefix("node:") for x in r.node_selector or () if x.startswith("node:")), None))
 
 
 def build_overview(db: Session, now: datetime, offline_after_seconds: int) -> Overview:

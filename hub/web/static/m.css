@@ -68,3 +68,4 @@ a.kpi:hover { text-decoration: none; } a.kpi:active { background: var(--idle-bg)
 .m-site h2 { position: static; }
 .m-site .m-foot { margin-bottom: 8px; }
 @media (min-width: 400px) { body.m-site main.m-main { padding-left: 16px; padding-right: 16px; } }
+.q-err { grid-column: 2 / 4; color: var(--warn); line-height: 1.35; }

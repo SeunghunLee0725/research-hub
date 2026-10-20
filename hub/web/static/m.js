@@ -22,6 +22,8 @@
       }));
       const saved = recall(KEY(name));
       show(saved && bar.querySelector(`[data-chip="${saved}"]`) ? saved : bar.dataset.default);
+      const on = bar.querySelector(".chip-btn.on");  // keep the selected chip in view without scrolling the page
+      if (on) bar.scrollLeft = Math.max(0, on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2);
     });
   }
 

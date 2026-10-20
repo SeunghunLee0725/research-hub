@@ -7,7 +7,7 @@
   {% for p in view.projects | selectattr("kind", "equalto", kind) %}{% set st = STATUS[p.status] %}
   <div class="m-card m-pcard">
     <a class="m-row" href="/projects/{{ p.slug }}"><strong>{{ p.name }}</strong><span class="pill {{ st[2] }}">{{ st[0] }}</span></a>
-    <div class="muted small">{{ p.node or '머신 미정' }}{% if p.ends_on %} · {{ d_day(p.ends_on, today) }}{% endif %}{% if p.starts_on or p.ends_on %} · {{ period_text(p.starts_on, p.ends_on, today) }}{% endif %}</div>
+    <div class="muted small">{{ p.node or p.home_node or '머신 미정' }}{% if p.ends_on %} · {{ d_day(p.ends_on, today) }}{% endif %}{% if p.starts_on or p.ends_on %} · {{ period_text(p.starts_on, p.ends_on, today) }}{% endif %}</div>
     {% if p.task_id %}<a class="m-sublink" href="/tasks/{{ p.task_id }}">{{ p.task_title }} ›</a>{% endif %}
   </div>
   {% else %}<p class="m-empty">{{ label }}가 없습니다.</p>{% endfor %}

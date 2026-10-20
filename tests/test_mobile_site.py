@@ -22,7 +22,8 @@ def client(settings, db):
 def data(db):
     now = datetime.now(timezone.utc)
     node = Node(name="shlee-a4000", token_hash="a" * 64, last_seen_at=now)
-    grant = Project(slug="drug", name="마약탐지 과제", workdir="/w", kind="research", ends_on=date(2026, 12, 31))
+    grant = Project(slug="drug", name="마약탐지 과제", workdir="/w", kind="research", ends_on=date(2026, 12, 31),
+                    node_selector=["node:spark-2588"])
     short = Project(slug="ion", name="이온소스 단기", workdir="/w", kind="short")
     db.add_all([node, grant, short])
     db.commit()
@@ -72,6 +73,7 @@ def test_mobile_projects_split_by_kind(client, data):
     assert 'data-pane="research"' in page and 'data-pane="short"' in page
     assert page.index('data-pane="research"') < page.index("마약탐지 과제") < page.index('data-pane="short"')
     assert "D-" in page or "마감" in page
+    assert "spark-2588" in page  # the project's machine, even with no task running
 
 
 def test_manifest_is_public(settings, db):

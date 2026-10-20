@@ -11,7 +11,7 @@
   <link rel="icon" href="/static/icon-192.png">
   <title>{% block title %}Research Hub{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v=4">
-  <link rel="stylesheet" href="/static/m.css?v=4">
+  <link rel="stylesheet" href="/static/m.css?v=5">
 </head>
 <body class="mobile m-site">
   <header class="appbar">
@@ -24,6 +24,6 @@
     <div id="live" data-src="{{ request.url.path }}?{{ request.url.query }}{{ '&' if request.url.query else '' }}partial=1" data-every="{% block every %}15000{% endblock %}">{% block live %}{% endblock %}</div>
   </main>
   {% include "m/_tabbar.html" %}
-  <script src="/static/m.js?v=4" defer></script>
+  <script src="/static/m.js?v=5" defer></script>
 </body>
 </html>
