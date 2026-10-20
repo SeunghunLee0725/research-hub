@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_work_macros.html" import filter_link, qs %}
+{% block body_attrs %} data-wide{% endblock %}
+{% block nav %}<form method="post" action="/logout"><button class="link">로그아웃</button></form>{% endblock %}
+{% block main %}
+<div class="work-head">
+  <h1 class="title">간트 차트</h1>
+  <div class="tools">
+    {% if not is_mobile(request) %}<span class="seg-group">
+      {{ filter_link("프로젝트별", qs("project", range, kind), view == "project") }}
+      {{ filter_link("에이전트별", qs("agent", range, kind), view == "agent") }}
+    </span>{% endif %}
+    <span class="seg-group">{% for key, label in ranges %}{{ filter_link(label, qs(view, key, kind), range == key) }}{% endfor %}</span>
+    <span class="seg-group">
+      {{ filter_link("전체", qs(view, range, None), not kind) }}
+      {{ filter_link("연구과제", qs(view, range, "research"), kind == "research") }}
+      {{ filter_link("단기 프로젝트", qs(view, range, "short"), kind == "short") }}
+    </span>
+  </div>
+</div>
+<div id="live" data-src="/gantt?{{ qs(view, range, kind) }}&partial=1" data-every="30000">{% include "_gantt_body.html" %}</div>
+{% endblock %}
+{% block scripts %}<script src="/static/work.js" defer></script>{% endblock %}

@@ -7,6 +7,7 @@
   {% for p in waiting %}{% set st = STATUS[p.status] %}
     <a class="card attention" href="/tasks/{{ p.task_id }}">
       <div class="row"><strong>{{ p.name }}</strong><span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
+      <div class="muted small">{{ KIND[p.kind] }}</div>
       <div>{{ p.task_title }}</div><div class="muted small">{{ st[1] }} →</div>
     </a>
   {% endfor %}
@@ -22,7 +23,8 @@
       <div class="row"><strong>{{ n.name }}</strong><span class="pill {{ st[1] }}">{{ st[0] }}</span></div>
       <div class="muted small">마지막 신호 {{ ago(n.last_seen_at, now) }}</div>
       <dl>
-        <dt>GPU</dt><dd>{% if n.gpu_util %}{% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span> {% endfor %}{% else %}-{% endif %}</dd>
+        <dt>GPU</dt><dd>{% if n.gpu_util %}{% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span> {% endfor %}{% else %}-{% endif %}
+          {% for used, total in n.gpu_mem %}<span class="muted small">VRAM {{ ((used or 0) / 1024)|round(1) }} / {{ (total / 1024)|round|int }} GB</span>{% endfor %}</dd>
         <dt>메모리</dt><dd>{% if n.mem_total_mb %}{{ (n.mem_used_mb / 1024)|round|int }} / {{ (n.mem_total_mb / 1024)|round|int }} GB{% else %}-{% endif %}</dd>
         <dt>디스크</dt><dd>{% if n.disk_total_gb %}{{ n.disk_used_gb|round|int }} / {{ n.disk_total_gb|round|int }} GB{% else %}-{% endif %}</dd>
         <dt>Claude</dt><dd><span class="pill {{ LOGIN[n.claude][1] }}">{{ LOGIN[n.claude][0] }}</span> {{ n.claude_plan or '' }}</dd>
@@ -58,24 +60,29 @@
 </section>
 
 <section>
-  <div class="header-actions"><h2>프로젝트</h2><a class="pill run" href="/projects/new">+ 새 프로젝트</a></div>
+  <div class="header-actions"><h2>프로젝트</h2><span><a class="pill idle" href="/gantt">간트 차트</a> <a class="pill idle" href="/board">진행 보드</a> <a class="pill run" href="/projects/new">+ 새 프로젝트</a></span></div>
+  {% set today = local_date(now, tz) %}
+  {% for kind, label in KIND.items() %}{% set rows = view.projects | selectattr("kind", "equalto", kind) | list %}
+  <h3 class="kind-head"><span class="kind-tag kind-{{ kind }}">{{ label }}</span> <span class="muted small">{{ rows|length }}개</span></h3>
   <table class="projects">
-    <thead><tr><th>프로젝트</th><th>상태</th><th>현재 작업</th><th>머신</th><th>최근 소식</th></tr></thead>
+    <thead><tr><th>프로젝트</th><th>상태</th><th>현재 작업</th><th>머신</th><th>기간</th><th>최근 소식</th></tr></thead>
     <tbody>
-    {% for p in view.projects %}
+    {% for p in rows %}
       {% set st = STATUS[p.status] %}
       <tr>
         <td data-label="프로젝트"><a href="/projects/{{ p.slug }}"><strong>{{ p.name }}</strong></a></td>
         <td data-label="상태"><span class="pill {{ st[2] }}">{{ st[0] }}</span> <span class="muted small">{{ st[1] }}</span></td>
         <td data-label="현재 작업">{% if p.task_id %}<a href="/tasks/{{ p.task_id }}">{{ p.task_title }}</a>{% else %}-{% endif %}</td>
         <td data-label="머신">{{ p.node or '-' }}</td>
+        <td data-label="기간" class="small">{{ period_text(p.starts_on, p.ends_on, today) }}</td>
         <td data-label="최근 소식">{% if p.last_event %}{{ p.last_event }} <span class="muted small">{{ ago(p.last_event_at, now) }}</span>{% else %}-{% endif %}</td>
       </tr>
     {% else %}
-      <tr><td colspan="5" class="muted">등록된 프로젝트가 없습니다.</td></tr>
+      <tr><td colspan="6" class="muted">등록된 {{ label }}가 없습니다.</td></tr>
     {% endfor %}
     </tbody>
   </table>
+  {% endfor %}
 </section>
 <p class="muted small footer">{{ local_time(now, tz) }} 기준 · 10초마다 자동 갱신</p>
 

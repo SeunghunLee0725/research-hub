@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from hub.api.envelope import ok
-from hub.db.models import Node, Project, Task, Upload
+from hub.db.models import PROJECT_KINDS, Node, Project, Task, Upload
 from hub.db.session import get_db
 from hub.services import tasks, uploads
 from hub.web.actions import CSRF_KEY, csrf_token
@@ -46,6 +46,20 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _kind_and_period(kind: str, starts_on: str, ends_on: str) -> tuple[str, date | None, date | None]:
+    kind = kind.strip() or "research"
+    if kind not in PROJECT_KINDS:
+        raise HTTPException(422, "프로젝트 종류는 연구과제 또는 단기 프로젝트입니다")
+    try:
+        start = date.fromisoformat(starts_on) if starts_on.strip() else None
+        end = date.fromisoformat(ends_on) if ends_on.strip() else None
+    except ValueError as exc:
+        raise HTTPException(422, "날짜는 YYYY-MM-DD 형식이어야 합니다") from exc
+    if start and end and start > end:
+        raise HTTPException(422, "시작일이 종료일보다 늦습니다")
+    return kind, start, end
+
+
 @router.get("/projects/new", response_class=HTMLResponse)
 def new_project(request: Request, db: Db):
     if not is_admin(request):
@@ -56,9 +70,11 @@ def new_project(request: Request, db: Db):
 
 @router.post("/projects")
 def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), name: Text(200), node: Text(64),
-                   workdir: Text(300) = "", context: Text(20000) = "", plan: Text(200000) = ""):
+                   workdir: Text(300) = "", context: Text(20000) = "", plan: Text(200000) = "",
+                   kind: Text(16) = "", starts_on: Text(10) = "", ends_on: Text(10) = ""):
     _admin(request)
     _check_csrf(request, csrf)
+    kind, start, end = _kind_and_period(kind, starts_on, ends_on)
     slug = slug.strip()
     if not SLUG_RE.fullmatch(slug):
         raise HTTPException(422, "프로젝트 ID는 영문 소문자·숫자·하이픈만 쓸 수 있습니다")
@@ -68,7 +84,7 @@ def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), na
     if not (workdir.startswith("/") or workdir.startswith("~/")) or ".." in workdir.split("/"):
         raise HTTPException(422, "작업 폴더는 / 또는 ~/ 로 시작하는 경로여야 합니다")
     project = Project(slug=slug, name=name.strip() or slug, workdir=workdir, node_selector=[f"node:{node}"],
-                      context=context.strip() or None)
+                      context=context.strip() or None, kind=kind, starts_on=start, ends_on=end)
     db.add(project)
     try:
         db.commit()
@@ -144,10 +160,13 @@ def resume_project(slug: str, request: Request, db: Db, csrf: Text(128)):
 
 
 @router.post("/projects/{slug}/settings")
-def update_settings(slug: str, request: Request, db: Db, csrf: Text(128), name: Text(200), context: Text(20000) = ""):
+def update_settings(slug: str, request: Request, db: Db, csrf: Text(128), name: Text(200), context: Text(20000) = "",
+                    kind: Text(16) = "", starts_on: Text(10) = "", ends_on: Text(10) = ""):
     _admin(request)
     _check_csrf(request, csrf)
     project = _project(db, slug)
+    kind, start, end = _kind_and_period(kind or project.kind, starts_on, ends_on)
     project.name, project.context = name.strip() or project.name, context.strip() or None
+    project.kind, project.starts_on, project.ends_on = kind, start, end
     db.commit()
     return RedirectResponse(f"/projects/{slug}", status_code=303)

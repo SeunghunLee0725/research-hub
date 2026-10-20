@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -17,6 +17,7 @@ class NodeView:
     last_seen_at: datetime | None
     labels: tuple[str, ...]
     gpu_util: list
+    gpu_mem: list
     mem_used_mb: int | None
     mem_total_mb: int | None
     disk_used_gb: float | None
@@ -49,6 +50,9 @@ class ProjectView:
     step_kind: str | None = None
     step_status: str | None = None
     step_started_at: datetime | None = None
+    kind: str = "research"
+    starts_on: date | None = None
+    ends_on: date | None = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +81,7 @@ def _node_view(node: Node, now: datetime, offline_after: int) -> NodeView:
         name=node.name, state=node_state(node.last_seen_at, now, offline_after),
         last_seen_at=node.last_seen_at, labels=tuple(node.labels or ()),
         gpu_util=[g.get("util_pct") for g in m.get("gpus", [])],
+        gpu_mem=[(g.get("mem_used_mb"), g.get("mem_total_mb")) for g in m.get("gpus", []) if g.get("mem_total_mb")],
         mem_used_mb=m.get("mem_used_mb"), mem_total_mb=m.get("mem_total_mb"),
         disk_used_gb=m.get("disk_used_gb"), disk_total_gb=m.get("disk_total_gb"),
         claude=login_badge(logins.get("claude")), codex=login_badge(logins.get("codex")),
@@ -96,8 +101,8 @@ def _project_views(db: Session) -> tuple[ProjectView, ...]:
     active = (select(Task.id, Task.project_id, Task.title, Task.status, Task.updated_at, Node.name.label("node"))
               .outerjoin(Node, Node.id == Task.node_id)
               .where(Task.status.not_in(TASK_FINISHED)).subquery())
-    rows = db.execute(select(Project.slug, Project.name, active.c.id, active.c.title, active.c.status,
-                             active.c.node, active.c.updated_at)
+    rows = db.execute(select(Project.slug, Project.name, Project.kind, Project.starts_on, Project.ends_on,
+                             active.c.id, active.c.title, active.c.status, active.c.node, active.c.updated_at)
                       .outerjoin(active, active.c.project_id == Project.id)
                       .order_by(Project.name)).all()
     return tuple(_project_view(db, r) for r in rows)
@@ -109,7 +114,8 @@ def _project_view(db: Session, r) -> ProjectView:
     return ProjectView(slug=r.slug, name=r.name, status=r.status or "idle", task_title=r.title, node=r.node,
                        updated_at=r.updated_at, task_id=r.id, last_event=event.message if event else None,
                        last_event_at=event.at if event else None, step_kind=step.kind if step else None,
-                       step_status=step.status if step else None, step_started_at=step.started_at if step else None)
+                       step_status=step.status if step else None, step_started_at=step.started_at if step else None,
+                       kind=r.kind, starts_on=r.starts_on, ends_on=r.ends_on)
 
 
 def build_overview(db: Session, now: datetime, offline_after_seconds: int) -> Overview:

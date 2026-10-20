@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 
 from hub.config import Settings
-from hub.db.models import Node, Project, Task
+from hub.db.models import PROJECT_KINDS, Node, Project, Task
 from hub.db.session import make_sessionmaker
 from hub.security import hash_password
 from hub.services import nodes, projects, tasks
@@ -34,6 +34,7 @@ def _parser() -> argparse.ArgumentParser:
     add_project.add_argument("name")
     add_project.add_argument("workdir")
     add_project.add_argument("--node-labels", default="")
+    add_project.add_argument("--kind", choices=PROJECT_KINDS, default="research", help="research=연구과제, short=단기 프로젝트")
     sub.add_parser("hash-password", help="관리자 비밀번호 해시 생성")
     add_task = sub.add_parser("add-task", help="작업 제안 등록(시작 승인 대기)")
     add_task.add_argument("slug")
@@ -91,7 +92,7 @@ def _run(db, args) -> int:
         return _approve_start(db, args.task_id)
     if args.command == "set-context":
         return _set_context(db, args.slug, args.path)
-    projects.create_project(db, args.slug, args.name, args.workdir, _labels(args.node_labels))
+    projects.create_project(db, args.slug, args.name, args.workdir, _labels(args.node_labels), args.kind)
     print(f"프로젝트 등록: {args.slug}")
     return 0
 

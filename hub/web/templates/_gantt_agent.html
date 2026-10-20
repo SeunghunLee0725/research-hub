@@ -1,0 +1,24 @@
+{% from "_work_macros.html" import step_title %}
+<div class="legend small">
+  {% for name, color in lanes.legend %}<span><i class="sw pc-{{ color }}"></i>{{ name }}</span>{% else %}<span class="muted">이 기간에 실행된 단계가 없습니다.</span>{% endfor %}
+  <span><i class="sw failed"></i>실패</span><span><i class="sw now-sw"></i>지금</span>
+</div>
+<div class="gantt-wrap" data-scroll-now="{{ axis.now_pct if axis.now_pct is not none else '' }}">
+<div class="gantt" style="--chart-w: {{ axis.width_px }}px">
+  {% set head_label = "머신 · 에이전트" %}{% include "_gantt_grid.html" %}
+  {% for lane in lanes.lanes %}
+    {% if loop.first or lane.node != loop.previtem.node %}
+    <div class="g-row g-group"><div class="g-left">{{ lane.node }}</div><div class="g-chart"></div></div>
+    {% endif %}
+    {% for track in lane.tracks %}
+    <div class="g-row g-lane{% if not loop.first %} more{% endif %}">
+      <div class="g-left">{% if loop.first %}<i class="sw agent-{{ lane.agent }}"></i>{{ AGENT[lane.agent] }}{% if lane.tracks|length > 1 %} <span class="muted small">동시 {{ lane.tracks|length }}</span>{% endif %}{% endif %}</div>
+      <div class="g-chart">
+        {% for s in track %}<a class="seg pc-{{ s.color }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}"
+           href="/tasks/{{ s.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" title="{{ step_title(s, tz, lane.agent, s.project, '#' ~ s.task_id ~ ' ' ~ s.title) }}"></a>{% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+</div>

@@ -1,0 +1,43 @@
+{% from "_work_macros.html" import step_title, kind_tag %}
+<div class="legend small">
+  <span><i class="sw agent-claude"></i>Claude</span><span><i class="sw agent-codex"></i>Codex</span>
+  <span><i class="sw agent-none"></i>머신 실행</span><span><i class="sw failed"></i>실패·재시도</span>
+  <span><i class="sw wait"></i>대기(승인·사람·대기열)</span><span><i class="sw period"></i>과제 기간</span>
+  <span><i class="sw now-sw"></i>지금</span>
+</div>
+<div class="gantt-wrap" data-scroll-now="{{ axis.now_pct if axis.now_pct is not none else '' }}">
+<div class="gantt" style="--chart-w: {{ axis.width_px }}px">
+  {% set head_label = "프로젝트 / 작업" %}{% include "_gantt_grid.html" %}
+  {% set today = local_date(now, tz) %}
+  {% for g in gantt.groups %}
+  <div class="g-row g-group"><div class="g-left">{{ KIND[g.kind] }} <span class="muted">{{ g.rows|length }}</span></div><div class="g-chart"></div></div>
+    {% for r in g.rows %}
+    {% set busy = r.bars | rejectattr("status", "in", ["done", "cancelled"]) | list %}
+    <details class="g-project"{% if busy or r.bars|length <= 6 %} open{% endif %} data-key="{{ r.slug }}">
+      <summary class="g-row g-prow">
+        <div class="g-left"><span class="caret"></span><a href="/projects/{{ r.slug }}"><strong>{{ r.name }}</strong></a>
+          <span class="muted small">{{ r.node or '' }}{% if r.ends_on %} · {{ d_day(r.ends_on, today) }}{% endif %} · 작업 {{ r.bars|length }}</span></div>
+        <div class="g-chart">
+          {% if r.period %}<span class="period" style="left: {{ r.period[0] }}%; width: {{ r.period[1] }}%" title="{{ period_text(r.starts_on, r.ends_on, today) }}"></span>{% endif %}
+          {% if r.deadline_pct is not none %}<span class="deadline" style="left: {{ r.deadline_pct }}%" title="마감 {{ r.ends_on }}"></span>{% endif %}
+          {% for b in r.bars %}<span class="rollup st-{{ b.status }}" style="left: {{ b.left }}%; width: {{ b.width }}%"></span>{% endfor %}
+        </div>
+      </summary>
+      {% for b in r.bars %}{% set st = STATUS[b.status] %}
+      <div class="g-row g-trow">
+        <div class="g-left"><a href="/tasks/{{ b.task_id }}" title="{{ b.title }}">#{{ b.task_id }} {{ b.title }}</a> <span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
+        <div class="g-chart">
+          <a class="tbar st-{{ b.status }}" href="/tasks/{{ b.task_id }}" style="left: {{ b.left }}%; width: {{ b.width }}%"
+             title="#{{ b.task_id }} {{ b.title }}&#10;{{ local_time(b.start, tz) }} ~ {{ local_time(b.end, tz) if b.status in ('done', 'cancelled') else '진행 중' }} ({{ duration(b.start, b.end) }}) · {{ st[0] }}{% if b.node %} · {{ b.node }}{% endif %}"></a>
+          {% for s in b.segments %}<a class="seg agent-{{ s.agent }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}"
+             href="/tasks/{{ b.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" title="{{ step_title(s, tz, s.agent) }}"></a>{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </details>
+    {% endfor %}
+  {% else %}
+  <p class="muted g-empty">이 기간에 표시할 프로젝트가 없습니다.</p>
+  {% endfor %}
+</div>
+</div>

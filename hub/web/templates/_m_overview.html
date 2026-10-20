@@ -6,7 +6,7 @@
   <h2>확인 필요 <span class="count">{{ waiting|length }}</span></h2>
   {% for p in waiting %}{% set st = STATUS[p.status] %}
   <a class="m-card attention" href="/tasks/{{ p.task_id }}">
-    <div class="m-row"><span class="pill {{ st[2] }}">{{ st[0] }}</span><span class="muted small">{{ p.name }}</span></div>
+    <div class="m-row"><span class="pill {{ st[2] }}">{{ st[0] }}</span><span class="muted small">{{ KIND[p.kind] }} · {{ p.name }}</span></div>
     <div class="m-title">{{ p.task_title }}</div>
     <div class="m-action">{{ st[1] }} ›</div>
   </a>
@@ -17,7 +17,7 @@
   <h2>진행 중 <span class="count">{{ running|length }}</span></h2>
   {% for p in running %}
   <a class="m-card" href="/tasks/{{ p.task_id }}">
-    <div class="m-row"><strong>{{ p.name }}</strong><span class="muted small">{{ p.node or '' }}</span></div>
+    <div class="m-row"><strong>{{ p.name }}</strong><span class="muted small">{{ KIND[p.kind] }} · {{ p.node or '' }}</span></div>
     <div class="m-title">{{ p.task_title }}</div>
     {% if p.step_kind %}<div class="m-step"><span class="pill run">{{ STEP[p.step_kind] }}</span>
       <span class="small">{{ STEP_STATUS[p.step_status][0] }}</span>
@@ -54,8 +54,11 @@
 {% if idle %}
 <section>
   <details class="m-idle"><summary>쉬는 프로젝트 {{ idle|length }}개</summary>
-    {% for p in idle %}<a class="m-link" href="/projects/{{ p.slug }}">{{ p.name }} ›</a>{% endfor %}
+    {% for kind, label in KIND.items() %}{% set rows = idle | selectattr("kind", "equalto", kind) | list %}{% if rows %}
+    <div class="m-sub">{{ label }}</div>
+    {% for p in rows %}<a class="m-link" href="/projects/{{ p.slug }}">{{ p.name }}{% if p.ends_on %} <span class="muted small">{{ d_day(p.ends_on, local_date(now, tz)) }}</span>{% endif %} ›</a>{% endfor %}
+    {% endif %}{% endfor %}
   </details>
 </section>
 {% endif %}
-<p class="m-foot"><a href="/projects/new">+ 새 프로젝트</a> · {{ local_time(now, tz) }} 기준</p>
+<p class="m-foot"><a href="/gantt">작업 일정</a> · <a href="/board">진행 보드</a> · <a href="/projects/new">+ 새 프로젝트</a> · {{ local_time(now, tz) }} 기준</p>

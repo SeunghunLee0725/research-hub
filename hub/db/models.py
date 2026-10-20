@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import (BigInteger, Boolean, LargeBinary, CheckConstraint, DateTime, ForeignKey, Index, Integer,
+from sqlalchemy import (BigInteger, Boolean, LargeBinary, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer,
                         String, Text, UniqueConstraint, func, text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -12,6 +12,7 @@ STEP_KINDS = ("plan", "implement", "run", "review", "analyze", "verify", "report
 STEP_STATUSES = ("pending", "leased", "running", "succeeded", "failed", "lost")
 MODELS = ("claude", "codex", "none")
 PROVIDERS = ("claude", "codex")
+PROJECT_KINDS = ("research", "short")  # 연구과제 | 단기 프로젝트
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -39,7 +40,11 @@ class Node(Base):
 
 class Project(Base):
     __tablename__ = "projects"
-    __table_args__ = (CheckConstraint("max_parallel >= 1", name="max_parallel_positive"),)
+    __table_args__ = (
+        CheckConstraint("max_parallel >= 1", name="max_parallel_positive"),
+        CheckConstraint(_in("kind", PROJECT_KINDS), name="project_kind_valid"),
+        CheckConstraint("starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on", name="project_period_order"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     slug: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(200))
@@ -54,6 +59,9 @@ class Project(Base):
     # A stuck task is diagnosed by the agent; the researcher still chooses whether to apply the fix.
     auto_diagnose: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     workdir_status: Mapped[dict | None] = mapped_column(JSONB)
+    kind: Mapped[str] = mapped_column(String(16), default="research", server_default="research")
+    starts_on: Mapped[date | None] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

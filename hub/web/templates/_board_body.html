@@ -1,0 +1,28 @@
+{% from "_work_macros.html" import kind_tag %}
+<div class="board">
+{% for col in board.columns %}{% set st = STATUS[col.status] %}
+  <section class="b-col{% if not col.cards %} empty{% endif %}" data-status="{{ col.status }}">
+    <h3><span class="pill {{ st[2] }}">{{ BOARD[col.status] }}</span><span class="count">{{ col.cards|length }}</span></h3>
+    {% for c in col.cards %}
+    <a class="b-card" href="/tasks/{{ c.task_id }}">
+      <div class="row">{{ kind_tag(c.kind) }}<span class="muted small b-proj">{{ c.project }}</span></div>
+      <div class="b-title">#{{ c.task_id }} {{ c.title }}</div>
+      {% if c.current and col.status not in ('done', 'cancelled') %}
+      <div class="b-now small"><i class="sw agent-{{ c.current.agent }}"></i><strong>{{ STEP.get(c.current.kind, c.current.kind) }}</strong>
+        · {{ AGENT[c.current.agent] }}{% if c.current.model_name %} <span class="muted">{{ c.current.model_name }}</span>{% endif %}
+        · {{ STEP_STATUS[c.current.status][0] }}</div>
+      {% endif %}
+      {% if c.chain %}<div class="chain">{% for ch in c.chain %}<span class="chip agent-{{ ch.agent }}{% if ch.status in ('failed', 'lost') %} failed{% elif ch.status in ('leased', 'running') %} live{% elif ch.status == 'pending' %} pending{% endif %}"
+        title="{{ STEP.get(ch.kind, ch.kind) }} · {{ AGENT[ch.agent] }}{% if ch.model_name %} ({{ ch.model_name }}){% endif %} · {{ STEP_STATUS[ch.status][0] }}">{{ STEP.get(ch.kind, ch.kind) }}</span>{% endfor %}</div>{% endif %}
+      {% if c.conclusion %}<div class="b-concl small">{{ c.conclusion }}</div>
+      {% elif c.last_event and col.status not in ('done', 'cancelled') %}<div class="b-event small muted">{{ c.last_event }}</div>{% endif %}
+      <div class="muted small b-foot">{{ c.node or '머신 미정' }}
+        {% if col.status in ('done', 'cancelled') %}· {{ ago(c.updated_at, now) }}{% if c.started_at %} · {{ duration(c.started_at, c.updated_at) }} 걸림{% endif %}
+        {% elif c.started_at %}· 시작 {{ ago(c.started_at, now) }}{% endif %}
+        {% if c.retries %}· 재시도 {{ c.retries }}{% endif %}</div>
+    </a>
+    {% else %}<p class="muted small b-none">없음</p>{% endfor %}
+  </section>
+{% endfor %}
+</div>
+<p class="muted small footer">{{ local_time(now, tz) }} 기준 · 10초마다 자동 갱신</p>

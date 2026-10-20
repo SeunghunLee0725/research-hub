@@ -1,0 +1,15 @@
+{% macro filter_link(label, params, on) -%}
+<a class="seg-btn{% if on %} on{% endif %}" href="?{{ params }}">{{ label }}</a>
+{%- endmacro %}
+
+{% macro qs(view, range, kind, extra='') -%}
+view={{ view }}&range={{ range }}{% if kind %}&kind={{ kind }}{% endif %}{{ extra }}
+{%- endmacro %}
+
+{% macro step_title(s, tz, agent, project=None, title=None) -%}
+{% if project %}{{ project }} · {{ title }}&#10;{% endif %}{{ STEP.get(s.kind, s.kind) }} · {{ AGENT[agent] }}{% if s.model_name %} ({{ s.model_name }}){% endif %}{% if s.node is defined and s.node %} · {{ s.node }}{% endif %}&#10;{{ local_time(s.start, tz) }} ~ {{ local_time(s.end, tz) if s.status not in ('leased', 'running') else '진행 중' }} ({{ duration(s.start, s.end) }}) · {{ STEP_STATUS[s.status][0] }}{% if s.attempt is defined and s.attempt > 1 %} · {{ s.attempt }}번째 시도{% endif %}{% if s.error_class is defined and s.error_class %} · {{ s.error_class }}{% endif %}
+{%- endmacro %}
+
+{% macro kind_tag(kind) -%}
+<span class="kind-tag kind-{{ kind }}">{{ KIND[kind] }}</span>
+{%- endmacro %}

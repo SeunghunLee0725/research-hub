@@ -6,10 +6,15 @@
   <title>Research Hub</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body{% if is_mobile(request) %} class="mobile"{% endif %}>
+<body{% if is_mobile(request) %} class="mobile"{% endif %}{% block body_attrs %}{% endblock %}>
   <header class="top">
-    <span class="brand">Research Hub</span>
-    {% block nav %}{% endblock %}
+    <span class="brand"><a href="/">Research Hub</a></span>
+    {% if is_admin(request) %}<nav class="menu">
+      <a href="/"{% if request.url.path == '/' %} class="on"{% endif %}>현황</a>
+      <a href="/gantt"{% if request.url.path == '/gantt' %} class="on"{% endif %}>간트</a>
+      <a href="/board"{% if request.url.path == '/board' %} class="on"{% endif %}>진행 보드</a>
+    </nav>{% endif %}
+    <span class="nav-end">{% block nav %}{% endblock %}</span>
   </header>
   <main>{% block main %}{% endblock %}</main>
   {% block scripts %}{% endblock %}

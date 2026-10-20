@@ -1,0 +1,9 @@
+<div class="g-grid" aria-hidden="true">
+  {% for s in axis.shades %}<span class="g-shade" style="left: {{ s.left }}%; width: {{ s.width }}%"></span>{% endfor %}
+  {% for t in axis.ticks %}<span class="g-line{% if t.major %} major{% endif %}" style="left: {{ t.left }}%"></span>{% endfor %}
+  {% if axis.now_pct is not none %}<span class="now" style="left: {{ axis.now_pct }}%"></span>{% endif %}
+</div>
+<div class="g-row g-head">
+  <div class="g-left">{{ head_label }}</div>
+  <div class="g-chart g-axis">{% for t in axis.ticks %}<span class="g-tick{% if t.major %} major{% endif %}" style="left: {{ t.left }}%">{{ t.label }}</span>{% endfor %}</div>
+</div>

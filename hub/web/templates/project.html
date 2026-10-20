@@ -3,7 +3,8 @@
 {% block main %}
 <div class="muted small">{{ node }} · {{ p.workdir }}
   {% if p.workdir_status %}{% if p.workdir_status.ok %}<span class="pill ok">폴더 준비됨</span>{% else %}<span class="pill bad">폴더 문제: {{ p.workdir_status.error }}</span>{% endif %}{% else %}<span class="pill idle">폴더 확인 전</span>{% endif %}</div>
-<h1 class="title">{{ p.name }}</h1>
+<h1 class="title"><span class="kind-tag kind-{{ p.kind }}">{{ KIND[p.kind] }}</span> {{ p.name }}</h1>
+{% if p.starts_on or p.ends_on %}<div class="muted small">기간 {{ period_text(p.starts_on, p.ends_on, local_date(now, tz)) }}</div>{% endif %}
 
 <section>
   <h2>자료 올리기</h2>
@@ -49,6 +50,9 @@
   <form class="card stack" method="post" action="/projects/{{ p.slug }}/settings">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label>이름<input name="name" value="{{ p.name }}" maxlength="200"></label>
+    <label>종류<select name="kind">{% for k, label in KIND.items() %}<option value="{{ k }}"{% if p.kind == k %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <div class="dates"><label>시작일<input type="date" name="starts_on" value="{{ p.starts_on or '' }}"></label>
+      <label>종료일·마감<input type="date" name="ends_on" value="{{ p.ends_on or '' }}"></label></div>
     <label>배경 지시<textarea name="context" rows="6" maxlength="20000">{{ p.context or '' }}</textarea></label>
     <button class="secondary">저장</button>
   </form>

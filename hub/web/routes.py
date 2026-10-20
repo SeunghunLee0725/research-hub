@@ -23,6 +23,8 @@ router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 templates.env.globals.update(
     ago=formatting.ago, by_priority=formatting.by_priority, is_mobile=is_mobile, local_time=formatting.local_time, pct_level=formatting.pct_level,
+    duration=formatting.duration, period_text=formatting.period_text, d_day=formatting.d_day, local_date=formatting.local_date,
+    is_admin=is_admin, KIND=formatting.KIND_LABELS, AGENT=formatting.AGENT_LABELS, BOARD=formatting.BOARD_LABELS,
     STATUS=formatting.STATUS_LABELS, STEP=task_detail.STEP_LABELS, NODE=formatting.NODE_LABELS, STEP_STATUS=formatting.STEP_STATUS, LOGIN=formatting.LOGIN_LABELS,
 )
 Db = Annotated[Session, Depends(get_db)]

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_work_macros.html" import filter_link %}
+{% block body_attrs %} data-wide{% endblock %}
+{% block nav %}<form method="post" action="/logout"><button class="link">로그아웃</button></form>{% endblock %}
+{% block main %}
+{% set kq = '&kind=' ~ kind if kind else '' %}
+<div class="work-head">
+  <h1 class="title">진행 보드</h1>
+  <div class="tools">
+    <span class="seg-group">
+      {{ filter_link("전체", "done=" ~ done_days, not kind) }}
+      {{ filter_link("연구과제", "done=" ~ done_days ~ "&kind=research", kind == "research") }}
+      {{ filter_link("단기 프로젝트", "done=" ~ done_days ~ "&kind=short", kind == "short") }}
+    </span>
+    <span class="seg-group"><span class="seg-label">완료·취소</span>{% for d in done_choices %}{{ filter_link("최근 " ~ d ~ "일", "done=" ~ d ~ kq, done_days == d) }}{% endfor %}</span>
+  </div>
+</div>
+<div id="live" data-src="/board?done={{ done_days }}{{ kq }}&partial=1" data-every="10000">{% include "_board_body.html" %}</div>
+{% endblock %}
+{% block scripts %}<script src="/static/work.js" defer></script>{% endblock %}

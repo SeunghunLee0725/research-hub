@@ -1,0 +1,22 @@
+{% set today = local_date(now, tz) %}
+<div class="m-gantt">
+<p class="muted small">막대 차트는 넓은 화면에서 보입니다. 여기서는 프로젝트별 작업 기간과 단계를 목록으로 봅니다.</p>
+{% for g in gantt.groups %}
+<section>
+  <h2>{{ KIND[g.kind] }} <span class="count">{{ g.rows|length }}</span></h2>
+  {% for r in g.rows %}
+  {% set busy = r.bars | rejectattr("status", "in", ["done", "cancelled"]) | list %}
+  <details class="m-card m-proj"{% if busy or (r.bars and r.bars|length <= 3) %} open{% endif %}>
+    <summary class="m-row"><strong>{{ r.name }}</strong><span class="muted small">{% if r.ends_on %}{{ d_day(r.ends_on, today) }} · {% endif %}작업 {{ r.bars|length }}</span></summary>
+    {% for b in r.bars|reverse %}{% set st = STATUS[b.status] %}
+    <a class="m-task" href="/tasks/{{ b.task_id }}">
+      <div class="m-row"><span>#{{ b.task_id }} {{ b.title }}</span><span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
+      <div class="muted small">{{ local_time(b.start, tz) }} ~ {{ local_time(b.end, tz) if b.status in ('done', 'cancelled') else '진행 중' }} · {{ duration(b.start, b.end) }}</div>
+      <div class="chain">{% for s in b.segments %}<span class="chip agent-{{ s.agent }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}">{{ STEP.get(s.kind, s.kind) }}</span>{% endfor %}</div>
+    </a>
+    {% else %}<p class="m-empty">이 기간에 작업이 없습니다.</p>{% endfor %}
+  </details>
+  {% endfor %}
+</section>
+{% else %}<p class="m-empty">표시할 프로젝트가 없습니다.</p>{% endfor %}
+</div>

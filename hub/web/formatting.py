@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 STATUS_LABELS = {
@@ -46,3 +46,43 @@ def pct_level(value: float | None) -> str:
 
 def by_priority(items: list[dict]) -> list[dict]:
     return sorted(items, key=lambda item: item.get("priority") or 99)
+
+
+KIND_LABELS = {"research": "연구과제", "short": "단기 프로젝트"}
+AGENT_LABELS = {"claude": "Claude", "codex": "Codex", "none": "머신 실행"}
+BOARD_LABELS = {"proposed": "시작 승인 대기", "approved": "대기열", "running": "실행 중", "waiting_human": "사람 작업",
+                "review": "결과 검토", "problem": "문제", "done": "완료", "cancelled": "취소"}
+
+
+def duration(start: datetime | None, end: datetime | None) -> str:
+    if start is None or end is None:
+        return "-"
+    minutes = max(0, int((end - start).total_seconds() // 60))
+    if minutes < 60:
+        return f"{max(minutes, 1) if end > start else 0}분"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}시간 {minutes}분" if minutes else f"{hours}시간"
+    days, hours = divmod(hours, 24)
+    return f"{days}일 {hours}시간" if hours else f"{days}일"
+
+
+def d_day(ends_on: date | None, today: date) -> str | None:
+    if ends_on is None:
+        return None
+    left = (ends_on - today).days
+    if left > 0:
+        return f"D-{left}"
+    return "D-day" if left == 0 else f"마감 {-left}일 지남"
+
+
+def period_text(starts_on: date | None, ends_on: date | None, today: date) -> str:
+    if not (starts_on or ends_on):
+        return "-"
+    span = f"{starts_on:%y.%m.%d} ~ " if starts_on else "~ "
+    span += f"{ends_on:%y.%m.%d}" if ends_on else ""
+    return f"{span} · {d_day(ends_on, today)}" if ends_on else span
+
+
+def local_date(value: datetime, tz: str) -> date:
+    return value.astimezone(ZoneInfo(tz)).date()

@@ -1,0 +1,4 @@
+{% if is_mobile(request) %}{% include "_m_gantt.html" %}
+{% elif view == "agent" %}{% include "_gantt_agent.html" %}
+{% else %}{% include "_gantt_project.html" %}{% endif %}
+<p class="muted small footer">{{ local_time(now, tz) }} 기준 · 30초마다 자동 갱신 · 막대를 누르면 작업 화면으로 갑니다</p>
