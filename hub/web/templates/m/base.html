@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1f26" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png">
+  <title>{% block title %}Research Hub{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v=4">
+  <link rel="stylesheet" href="/static/m.css?v=4">
+</head>
+<body class="mobile m-site">
+  <header class="appbar">
+    <h1>{% block heading %}Research Hub{% endblock %}</h1>
+    <span class="appbar-end"><span class="sync" aria-hidden="true"></span>{% block appbar_end %}{% endblock %}</span>
+  </header>
+  <div class="ptr" aria-hidden="true">당겨서 새로고침</div>
+  <main class="m-main">
+    {% block top %}{% endblock %}
+    <div id="live" data-src="{{ request.url.path }}?{{ request.url.query }}{{ '&' if request.url.query else '' }}partial=1" data-every="{% block every %}15000{% endblock %}">{% block live %}{% endblock %}</div>
+  </main>
+  {% include "m/_tabbar.html" %}
+  <script src="/static/m.js?v=4" defer></script>
+</body>
+</html>

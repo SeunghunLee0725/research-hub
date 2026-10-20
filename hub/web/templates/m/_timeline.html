@@ -1,0 +1,18 @@
+{% for day, items in days %}
+<section>
+  <h2>{{ day.month }}월 {{ day.day }}일 <span class="count">{{ items|length }}</span></h2>
+  {% for row, b, segs in items %}{% set st = STATUS[b.status] %}
+  <a class="m-card m-tl" href="/tasks/{{ b.task_id }}">
+    <div class="m-row"><span class="muted small ell"><span class="kind-tag kind-{{ row.kind }}">{{ KIND[row.kind] }}</span> {{ row.name }}</span><span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
+    <div class="m-title">#{{ b.task_id }} {{ b.title }}</div>
+    <div class="m-strip" role="img" aria-label="단계 {{ segs|length }}개">
+      {% for x in segs %}{% set s = x.seg %}<span class="sg agent-{{ s.agent }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}" style="left: {{ x.left }}%; width: {{ x.width }}%"></span>{% endfor %}
+    </div>
+    <div class="m-row small muted"><span>{{ local_time(b.start, tz) }}</span><span>{{ duration(b.start, b.end) }}</span><span>{{ local_time(b.end, tz) if b.status in ('done', 'cancelled') else '진행 중' }}</span></div>
+    {% if segs %}<div class="chain">{% for x in segs %}{% set s = x.seg %}<span class="chip agent-{{ s.agent }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}">{{ STEP.get(s.kind, s.kind) }} {{ duration(s.start, s.end) }}</span>{% endfor %}</div>{% endif %}
+  </a>
+  {% endfor %}
+</section>
+{% else %}
+<p class="m-empty">이 기간에 작업이 없습니다. 위에서 기간을 늘려 보세요.</p>
+{% endfor %}

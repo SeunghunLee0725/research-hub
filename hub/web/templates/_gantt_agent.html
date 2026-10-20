@@ -15,7 +15,7 @@
       <div class="g-left">{% if loop.first %}<i class="sw agent-{{ lane.agent }}"></i>{{ AGENT[lane.agent] }}{% if lane.tracks|length > 1 %} <span class="muted small">동시 {{ lane.tracks|length }}</span>{% endif %}{% endif %}</div>
       <div class="g-chart">
         {% for s in track %}<a class="seg pc-{{ s.color }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}"
-           href="/tasks/{{ s.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" title="{{ step_title(s, tz, lane.agent, s.project, '#' ~ s.task_id ~ ' ' ~ s.title) }}"></a>{% endfor %}
+           href="/tasks/{{ s.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" data-tip="{{ step_title(s, tz, lane.agent, s.project, '#' ~ s.task_id ~ ' ' ~ s.title) }}"></a>{% endfor %}
       </div>
     </div>
     {% endfor %}

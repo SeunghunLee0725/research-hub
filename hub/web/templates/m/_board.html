@@ -1,0 +1,24 @@
+{% set first = (board.columns | selectattr("cards") | rejectattr("status", "in", ["done", "cancelled"]) | first) %}
+<div class="chips" data-chips="board" data-default="{{ first.status if first else 'done' }}">
+  {% for col in board.columns %}{% set st = STATUS[col.status] %}
+  <button type="button" class="chip-btn {{ st[2] }}{% if not col.cards %} zero{% endif %}" data-chip="{{ col.status }}">{{ BOARD[col.status] }} <b>{{ col.cards|length }}</b></button>
+  {% endfor %}
+</div>
+{% for col in board.columns %}
+<section class="pane" data-pane="{{ col.status }}" data-status="{{ col.status }}">
+  {% for c in col.cards %}
+  <a class="m-card b-mcard" href="/tasks/{{ c.task_id }}">
+    <div class="m-row"><span class="kind-tag kind-{{ c.kind }}">{{ KIND[c.kind] }}</span><span class="muted small ell">{{ c.project }}</span></div>
+    <div class="m-title">#{{ c.task_id }} {{ c.title }}</div>
+    {% if c.current and col.status not in ('done', 'cancelled') %}
+    <div class="m-step"><i class="sw agent-{{ c.current.agent }}"></i><strong class="small">{{ STEP.get(c.current.kind, c.current.kind) }}</strong>
+      <span class="small">{{ AGENT[c.current.agent] }} · {{ STEP_STATUS[c.current.status][0] }}</span></div>{% endif %}
+    {% if c.chain %}<div class="chain">{% for ch in c.chain %}<span class="chip agent-{{ ch.agent }}{% if ch.status in ('failed', 'lost') %} failed{% elif ch.status in ('leased', 'running') %} live{% elif ch.status == 'pending' %} pending{% endif %}">{{ STEP.get(ch.kind, ch.kind) }}</span>{% endfor %}</div>{% endif %}
+    {% if c.conclusion %}<div class="b-concl small">{{ c.conclusion }}</div>
+    {% elif c.last_event and col.status not in ('done', 'cancelled') %}<div class="m-event">{{ c.last_event }}</div>{% endif %}
+    <div class="muted small">{{ c.node or '머신 미정' }}{% if col.status in ('done', 'cancelled') %} · {{ ago(c.updated_at, now) }}{% elif c.started_at %} · {{ duration(c.started_at, now) }}째{% endif %}{% if c.retries %} · 재시도 {{ c.retries }}{% endif %}</div>
+  </a>
+  {% else %}<p class="m-empty">{{ BOARD[col.status] }} 작업이 없습니다.</p>{% endfor %}
+</section>
+{% endfor %}
+<p class="m-foot">완료·취소는 최근 7일 · {{ local_time(now, tz) }} 기준</p>

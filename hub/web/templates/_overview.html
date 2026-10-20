@@ -1,5 +1,14 @@
-{% if is_mobile(request) %}{% include "_m_overview.html" %}{% else %}
 {% set waiting = view.projects | selectattr("status", "in", ["proposed", "review", "problem", "waiting_human"]) | list %}
+{% set running = view.projects | selectattr("status", "in", ["approved", "running"]) | list %}
+{% set problems = view.projects | selectattr("status", "equalto", "problem") | list %}
+{% set online = view.nodes | selectattr("state", "equalto", "online") | list %}
+<div class="kpis">
+  <a class="kpi{% if waiting %} warn{% endif %}" href="/board"><b>{{ waiting|length }}</b><span>확인 필요</span></a>
+  <a class="kpi{% if running %} run{% endif %}" href="/board"><b>{{ running|length }}</b><span>실행 중</span></a>
+  <a class="kpi{% if problems %} bad{% endif %}" href="/board"><b>{{ problems|length }}</b><span>문제</span></a>
+  <a class="kpi ok" href="/gantt?range=1"><b>{{ done_today }}</b><span>24시간 완료</span></a>
+  <a class="kpi{% if online|length < view.nodes|length %} bad{% else %} ok{% endif %}" href="#machines"><b>{{ online|length }}/{{ view.nodes|length }}</b><span>머신 온라인</span></a>
+</div>
 {% if waiting %}
 <section>
   <h2>확인 필요 · {{ waiting|length }}건</h2>
@@ -14,7 +23,7 @@
   </div>
 </section>
 {% endif %}
-<section>
+<section id="machines">
   <h2>머신</h2>
   <div class="cards">
   {% for n in view.nodes %}
@@ -85,5 +94,3 @@
   {% endfor %}
 </section>
 <p class="muted small footer">{{ local_time(now, tz) }} 기준 · 10초마다 자동 갱신</p>
-
-{% endif %}

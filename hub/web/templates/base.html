@@ -4,19 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Hub</title>
-  <link rel="stylesheet" href="/static/style.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+  {% if is_mobile(request) %}<link rel="stylesheet" href="/static/m.css?v=4"><link rel="manifest" href="/manifest.webmanifest">{% endif %}
 </head>
 <body{% if is_mobile(request) %} class="mobile"{% endif %}{% block body_attrs %}{% endblock %}>
+  <div class="progress" aria-hidden="true"></div>
   <header class="top">
     <span class="brand"><a href="/">Research Hub</a></span>
     {% if is_admin(request) %}<nav class="menu">
-      <a href="/"{% if request.url.path == '/' %} class="on"{% endif %}>현황</a>
-      <a href="/gantt"{% if request.url.path == '/gantt' %} class="on"{% endif %}>간트</a>
-      <a href="/board"{% if request.url.path == '/board' %} class="on"{% endif %}>진행 보드</a>
+      <a href="/" data-key="1" title="현황 (1)"{% if request.url.path == '/' %} class="on"{% endif %}>현황<span class="badge warn" data-badge="attention" hidden></span></a>
+      <a href="/gantt" data-key="2" title="간트 차트 (2)"{% if request.url.path == '/gantt' %} class="on"{% endif %}>간트</a>
+      <a href="/board" data-key="3" title="진행 보드 (3)"{% if request.url.path == '/board' %} class="on"{% endif %}>진행 보드<span class="badge run" data-badge="running" hidden></span></a>
     </nav>{% endif %}
     <span class="nav-end">{% block nav %}{% endblock %}</span>
   </header>
   <main>{% block main %}{% endblock %}</main>
+  {% if is_mobile(request) %}{% include "m/_tabbar.html" %}{% endif %}
   {% block scripts %}{% endblock %}
+  {% if is_admin(request) %}<script src="/static/ui.js?v=4" defer></script>{% endif %}
 </body>
 </html>

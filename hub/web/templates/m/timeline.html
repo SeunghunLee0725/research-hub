@@ -1,0 +1,14 @@
+{% extends "m/base.html" %}
+{% block heading %}작업 일정{% endblock %}
+{% block every %}30000{% endblock %}
+{% block top %}
+<div class="chips nav">
+  {% for key, label in ranges %}<a class="chip-btn{% if range == key %} on{% endif %}" href="?range={{ key }}{{ '&kind=' ~ kind if kind }}">{{ label }}</a>{% endfor %}
+  <span class="chip-sep"></span>
+  <a class="chip-btn{% if not kind %} on{% endif %}" href="?range={{ range }}">전체</a>
+  <a class="chip-btn{% if kind == 'research' %} on{% endif %}" href="?range={{ range }}&kind=research">연구과제</a>
+  <a class="chip-btn{% if kind == 'short' %} on{% endif %}" href="?range={{ range }}&kind=short">단기</a>
+</div>
+<div class="legend small"><span><i class="sw agent-claude"></i>Claude</span><span><i class="sw agent-codex"></i>Codex</span><span><i class="sw agent-none"></i>실행</span><span><i class="sw failed"></i>실패</span></div>
+{% endblock %}
+{% block live %}{% include "m/_timeline.html" %}{% endblock %}

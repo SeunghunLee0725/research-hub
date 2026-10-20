@@ -45,33 +45,46 @@ def client(settings, db):
         yield c
 
 
-def test_phone_gets_mobile_layout(client, data):
-    page = client.get("/", headers={"User-Agent": S25}).text
-    assert 'class="mobile"' in page and 'name="viewport"' in page
+def test_phone_is_sent_to_the_mobile_site(client, data):
+    resp = client.get("/", headers={"User-Agent": S25}, follow_redirects=False)
+    assert resp.status_code == 303 and resp.headers["location"] == "/m"
+
+
+def test_mobile_home(client, data):
+    page = client.get("/m", headers={"User-Agent": S25}).text
+    assert 'name="viewport"' in page and "viewport-fit=cover" in page and 'rel="manifest"' in page
     assert page.index("확인 필요") < page.index("진행 중") < page.index("머신")
     assert "X선 80장 판독" in page and "검색 품질 측정" in page and "실행" in page and "epoch 3/10" in page
     assert "쉬는 과제" in page and 'href="/?view=desktop"' in page
+    for href in ('href="/m"', 'href="/m/board"', 'href="/m/timeline"', 'href="/m/projects"'):
+        assert href in page  # bottom tab bar
 
 
 def test_desktop_gets_desktop_layout(client, data):
     page = client.get("/", headers={"User-Agent": MAC}).text
-    assert 'class="mobile"' not in page and 'href="/?view=mobile"' in page
+    assert 'class="mobile"' not in page and 'href="/m"' in page
 
 
 def test_view_preference_is_remembered(client, data):
     client.get("/?view=desktop", headers={"User-Agent": S25})
-    assert 'class="mobile"' not in client.get("/", headers={"User-Agent": S25}).text
-    client.get("/?view=mobile", headers={"User-Agent": MAC})
-    assert 'class="mobile"' in client.get("/", headers={"User-Agent": MAC}).text
+    resp = client.get("/", headers={"User-Agent": S25}, follow_redirects=False)
+    assert resp.status_code == 200 and 'class="mobile"' not in resp.text
+    resp = client.get("/?view=mobile", headers={"User-Agent": MAC}, follow_redirects=False)
+    assert resp.headers["location"] == "/m"
 
 
 def test_mobile_partial_refresh(client, data):
-    client.get("/", headers={"User-Agent": S25})
-    part = client.get("/partials/overview", headers={"User-Agent": S25}).text
-    assert "m-card" in part
+    part = client.get("/m?partial=1", headers={"User-Agent": S25}).text
+    assert "m-card" in part and "<html" not in part
 
 
 def test_task_page_marks_mobile(client, data):
     _, waiting = data
     page = client.get(f"/tasks/{waiting.id}", headers={"User-Agent": S25}).text
     assert 'class="mobile"' in page
+
+
+def test_task_page_on_phone_has_tab_bar(client, data):
+    _, waiting = data
+    page = client.get(f"/tasks/{waiting.id}", headers={"User-Agent": S25}).text
+    assert 'class="tabbar"' in page

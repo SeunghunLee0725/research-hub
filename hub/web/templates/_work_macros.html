@@ -1,5 +1,5 @@
 {% macro filter_link(label, params, on) -%}
-<a class="seg-btn{% if on %} on{% endif %}" href="?{{ params }}">{{ label }}</a>
+<a class="seg-btn{% if on %} on{% endif %}" href="?{{ params }}" data-live-nav>{{ label }}</a>
 {%- endmacro %}
 
 {% macro qs(view, range, kind, extra='') -%}

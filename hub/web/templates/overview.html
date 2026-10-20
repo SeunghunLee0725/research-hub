@@ -4,6 +4,6 @@
 {% endblock %}
 {% block main %}
 <div id="overview">{% include "_overview.html" %}</div>
-<p class="muted small footer">{% if is_mobile(request) %}<a href="/?view=desktop">PC 화면으로 보기</a>{% else %}<a href="/?view=mobile">모바일 화면으로 보기</a>{% endif %}</p>
+<p class="muted small footer"><a href="/m">모바일 화면으로 보기</a> · 단축키 1 현황 · 2 간트 · 3 보드 · r 새로고침</p>
 {% endblock %}
 {% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

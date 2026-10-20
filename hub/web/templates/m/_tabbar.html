@@ -1,0 +1,7 @@
+{% set path = request.url.path %}
+<nav class="tabbar" aria-label="메뉴">
+  <a class="tab{% if path == '/m' %} on{% endif %}" href="/m"><span class="ico">⌂</span><span>홈</span><span class="badge warn" data-badge="attention" hidden></span></a>
+  <a class="tab{% if path == '/m/board' %} on{% endif %}" href="/m/board"><span class="ico">▦</span><span>보드</span><span class="badge run" data-badge="running" hidden></span></a>
+  <a class="tab{% if path == '/m/timeline' %} on{% endif %}" href="/m/timeline"><span class="ico">≡</span><span>일정</span></a>
+  <a class="tab{% if path == '/m/projects' or path.startswith('/projects') %} on{% endif %}" href="/m/projects"><span class="ico">◫</span><span>프로젝트</span></a>
+</nav>

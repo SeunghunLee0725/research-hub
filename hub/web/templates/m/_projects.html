@@ -1,0 +1,15 @@
+{% set today = local_date(now, tz) %}
+<div class="chips seg2" data-chips="projects" data-default="research">
+  {% for kind, label in KIND.items() %}<button type="button" class="chip-btn" data-chip="{{ kind }}">{{ label }} <b>{{ view.projects | selectattr("kind", "equalto", kind) | list | length }}</b></button>{% endfor %}
+</div>
+{% for kind, label in KIND.items() %}
+<section class="pane" data-pane="{{ kind }}">
+  {% for p in view.projects | selectattr("kind", "equalto", kind) %}{% set st = STATUS[p.status] %}
+  <div class="m-card m-pcard">
+    <a class="m-row" href="/projects/{{ p.slug }}"><strong>{{ p.name }}</strong><span class="pill {{ st[2] }}">{{ st[0] }}</span></a>
+    <div class="muted small">{{ p.node or '머신 미정' }}{% if p.ends_on %} · {{ d_day(p.ends_on, today) }}{% endif %}{% if p.starts_on or p.ends_on %} · {{ period_text(p.starts_on, p.ends_on, today) }}{% endif %}</div>
+    {% if p.task_id %}<a class="m-sublink" href="/tasks/{{ p.task_id }}">{{ p.task_title }} ›</a>{% endif %}
+  </div>
+  {% else %}<p class="m-empty">{{ label }}가 없습니다.</p>{% endfor %}
+</section>
+{% endfor %}

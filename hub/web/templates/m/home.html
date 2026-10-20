@@ -1,0 +1,4 @@
+{% extends "m/base.html" %}
+{% block heading %}현황{% endblock %}
+{% block appbar_end %}<form method="post" action="/logout"><button class="link small">로그아웃</button></form>{% endblock %}
+{% block live %}{% include "m/_home.html" %}{% endblock %}

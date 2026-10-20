@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from hub.api import agent_api
 from hub.config import Settings
 from hub.db.session import make_sessionmaker
-from hub.web import actions, projects, routes, work
+from hub.web import actions, mobile, projects, routes, work
 from hub.web.auth import LoginLimiter
 
 
@@ -25,4 +25,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(actions.router)
     app.include_router(projects.router)
     app.include_router(work.router)
+    app.include_router(mobile.router)
     return app

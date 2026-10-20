@@ -41,6 +41,8 @@ def gantt(request: Request, db: Db):
     if not is_admin(request):
         return _login_needed(request)
     remember_choice(request)
+    if is_mobile(request):
+        return RedirectResponse("/m/timeline", status_code=303)
     settings = request.app.state.settings
     now = datetime.now(timezone.utc)
     kind = _kind(request)
@@ -53,7 +55,7 @@ def gantt(request: Request, db: Db):
         start, end = timeline.window(span, now, None)
     context = {"now": now, "tz": settings.timezone, "kind": kind, "range": span, "view": view,
                "ranges": RANGE_LABELS, "axis": build_axis(start, end, now, settings.timezone)}
-    if view == "agent" and not is_mobile(request):
+    if view == "agent":
         context["lanes"] = timeline.build_agent_lanes(db, now, start, end, kind)
     else:
         context["gantt"] = timeline.build_gantt(db, now, start, end, kind, settings.timezone)
@@ -66,6 +68,8 @@ def status_board(request: Request, db: Db):
     if not is_admin(request):
         return _login_needed(request)
     remember_choice(request)
+    if is_mobile(request):
+        return RedirectResponse("/m/board", status_code=303)
     settings = request.app.state.settings
     now = datetime.now(timezone.utc)
     kind = _kind(request)

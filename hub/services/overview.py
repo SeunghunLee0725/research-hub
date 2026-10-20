@@ -126,3 +126,17 @@ def build_overview(db: Session, now: datetime, offline_after_seconds: int) -> Ov
         projects=_project_views(db),
         generated_at=now,
     )
+
+
+ATTENTION = ("proposed", "review", "problem", "waiting_human")
+RUNNING = ("approved", "running")
+
+
+def badge_counts(db: Session) -> dict:
+    rows = db.execute(select(Task.status).where(Task.status.not_in(TASK_FINISHED))).scalars().all()
+    return {"attention": sum(s in ATTENTION for s in rows), "running": sum(s in RUNNING for s in rows),
+            "problem": sum(s == "problem" for s in rows)}
+
+
+def done_since(db: Session, since: datetime) -> int:
+    return len(db.scalars(select(Task.id).where(Task.status == "done", Task.updated_at >= since)).all())

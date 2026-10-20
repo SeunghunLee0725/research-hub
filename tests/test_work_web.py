@@ -76,9 +76,11 @@ def test_gantt_by_agent(client, data):
     assert "이온소스 단기" in page  # legend
 
 
-def test_gantt_on_phone_is_a_list(client, data):
-    page = client.get("/gantt", headers={"user-agent": S25}).text
-    assert "m-gantt" in page and "음극 PIC 스윕" in page
+def test_gantt_and_board_on_phone_go_to_mobile_site(client, data):
+    resp = client.get("/gantt", headers={"user-agent": S25}, follow_redirects=False)
+    assert resp.headers["location"] == "/m/timeline"
+    resp = client.get("/board", headers={"user-agent": S25}, follow_redirects=False)
+    assert resp.headers["location"] == "/m/board"
 
 
 def test_board_columns(client, data):
@@ -102,3 +104,14 @@ def test_overview_splits_projects_by_kind(client, data):
     research = page.index("연구과제")
     short = page.index("단기 프로젝트")
     assert research < page.index("마약탐지 과제") < short < page.index("이온소스 단기")
+
+
+def test_desktop_overview_has_summary_strip(client, data):
+    page = client.get("/?view=desktop").text
+    assert 'class="kpis"' in page and "실행 중" in page and "머신 온라인" in page
+
+
+def test_filters_navigate_in_place_and_tooltips(client, data):
+    page = client.get("/gantt").text
+    assert "data-live-nav" in page and "data-tip=" in page and "/static/ui.js" in page
+    assert 'data-badge="attention"' in page

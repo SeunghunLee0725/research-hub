@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated
 
@@ -13,7 +13,7 @@ from hub.db.models import Media
 from hub.db.session import get_db
 from hub.security import verify_password
 from hub.services import task_detail
-from hub.services.overview import build_overview
+from hub.services.overview import badge_counts, build_overview, done_since
 from hub.web import formatting
 from hub.web.actions import csrf_token
 from hub.web.viewmode import is_mobile, remember_choice
@@ -33,7 +33,8 @@ Db = Annotated[Session, Depends(get_db)]
 def _overview_context(request: Request, db: Session) -> dict:
     settings = request.app.state.settings
     now = datetime.now(timezone.utc)
-    return {"view": build_overview(db, now, settings.offline_after_seconds), "now": now, "tz": settings.timezone}
+    return {"view": build_overview(db, now, settings.offline_after_seconds), "now": now, "tz": settings.timezone,
+            "done_today": done_since(db, now - timedelta(hours=24))}
 
 
 @router.get("/healthz")
@@ -74,7 +75,16 @@ def overview(request: Request, db: Db):
     if not is_admin(request):
         return RedirectResponse("/login", status_code=303)
     remember_choice(request)
+    if is_mobile(request):
+        return RedirectResponse("/m", status_code=303)
     return templates.TemplateResponse(request, "overview.html", _overview_context(request, db))
+
+
+@router.get("/partials/badges")
+def badges(request: Request, db: Db) -> dict:
+    if not is_admin(request):
+        raise HTTPException(401, "login required")
+    return ok(badge_counts(db))
 
 
 @router.get("/partials/overview", response_class=HTMLResponse)

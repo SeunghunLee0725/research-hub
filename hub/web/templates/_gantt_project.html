@@ -28,9 +28,9 @@
         <div class="g-left"><a href="/tasks/{{ b.task_id }}" title="{{ b.title }}">#{{ b.task_id }} {{ b.title }}</a> <span class="pill {{ st[2] }}">{{ st[0] }}</span></div>
         <div class="g-chart">
           <a class="tbar st-{{ b.status }}" href="/tasks/{{ b.task_id }}" style="left: {{ b.left }}%; width: {{ b.width }}%"
-             title="#{{ b.task_id }} {{ b.title }}&#10;{{ local_time(b.start, tz) }} ~ {{ local_time(b.end, tz) if b.status in ('done', 'cancelled') else '진행 중' }} ({{ duration(b.start, b.end) }}) · {{ st[0] }}{% if b.node %} · {{ b.node }}{% endif %}"></a>
+             data-tip="#{{ b.task_id }} {{ b.title }}&#10;{{ local_time(b.start, tz) }} ~ {{ local_time(b.end, tz) if b.status in ('done', 'cancelled') else '진행 중' }} ({{ duration(b.start, b.end) }}) · {{ st[0] }}{% if b.node %} · {{ b.node }}{% endif %}"></a>
           {% for s in b.segments %}<a class="seg agent-{{ s.agent }}{% if s.status in ('failed', 'lost') %} failed{% endif %}{% if s.status in ('leased', 'running') %} live{% endif %}"
-             href="/tasks/{{ b.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" title="{{ step_title(s, tz, s.agent) }}"></a>{% endfor %}
+             href="/tasks/{{ b.task_id }}" style="left: {{ s.left }}%; width: {{ s.width }}%" data-tip="{{ step_title(s, tz, s.agent) }}"></a>{% endfor %}
         </div>
       </div>
       {% endfor %}
