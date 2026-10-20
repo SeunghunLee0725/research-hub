@@ -91,9 +91,10 @@ def _node_view(node: Node, now: datetime, offline_after: int) -> NodeView:
 
 
 def _latest_quotas(db: Session, now: datetime) -> tuple[QuotaView, ...]:
-    # Subscriptions are per account, not per machine: the freshest snapshot from any node wins.
+    # Subscriptions are per account, not per machine: the freshest healthy snapshot from any node wins, so one
+    # machine with an expired login does not hide the usage another machine reads fine.
     rows = db.scalars(select(QuotaSnapshot).ext(distinct_on(QuotaSnapshot.provider)).where(QuotaSnapshot.at >= now - QUOTA_LOOKBACK)
-                      .order_by(QuotaSnapshot.provider, QuotaSnapshot.at.desc())).all()
+                      .order_by(QuotaSnapshot.provider, QuotaSnapshot.error.is_not(None), QuotaSnapshot.at.desc())).all()
     return tuple(QuotaView(r.provider, r.windows, r.error, r.at) for r in rows)
 
 

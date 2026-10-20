@@ -108,3 +108,19 @@ def test_node_without_codex_label_cannot_take_codex_step(db):
     scheduler.tick(db, NOW)
     assert db.query(Step).one().model == "codex"
     assert leasing.lease_step(db, node, NOW) is None
+
+
+def test_quota_usage_ignores_a_newer_error_snapshot(db):
+    from datetime import timedelta
+
+    from hub.db.models import Node, QuotaSnapshot
+    from hub.services.scheduler import quota_usage
+    from tests.conftest import NOW
+    good, broken = Node(name="a", token_hash="a" * 64), Node(name="b", token_hash="b" * 64)
+    db.add_all([good, broken])
+    db.commit()
+    db.add_all([QuotaSnapshot(node_id=good.id, provider="claude", at=NOW - timedelta(minutes=5),
+                              windows=[{"id": "w", "label": "5시간", "used_percent": 90.0}]),
+                QuotaSnapshot(node_id=broken.id, provider="claude", at=NOW, windows=[], error="토큰 없음")])
+    db.commit()
+    assert quota_usage(db, NOW)["claude"] == 90.0

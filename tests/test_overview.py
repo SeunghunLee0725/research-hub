@@ -57,3 +57,22 @@ def test_project_without_active_task_is_idle(db):
     db.commit()
     (p,) = build_overview(db, NOW, offline_after_seconds=90).projects
     assert p.status == "idle" and p.task_title is None
+
+
+def test_quota_prefers_a_healthy_snapshot_over_a_newer_error(db):
+    good = Node(name="spark-a", token_hash="a" * 64)
+    broken = Node(name="a4000", token_hash="b" * 64)
+    db.add_all([good, broken])
+    db.commit()
+    db.add_all([
+        QuotaSnapshot(node_id=good.id, provider="codex", at=NOW - timedelta(minutes=10),
+                      windows=[{"id": "weekly", "label": "7일", "used_percent": 30.0}]),
+        QuotaSnapshot(node_id=broken.id, provider="codex", at=NOW - timedelta(minutes=1), windows=[],
+                      error="401 Unauthorized"),
+        QuotaSnapshot(node_id=broken.id, provider="claude", at=NOW - timedelta(minutes=1), windows=[],
+                      error="토큰 없음"),
+    ])
+    db.commit()
+    quotas = {q.provider: q for q in build_overview(db, NOW, offline_after_seconds=90).quotas}
+    assert quotas["codex"].error is None and quotas["codex"].windows[0]["used_percent"] == 30.0
+    assert quotas["claude"].error == "토큰 없음"  # nothing healthy to show: the error is still reported

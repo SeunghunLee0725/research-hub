@@ -31,8 +31,10 @@ def _outputs(db: Session, task: Task) -> dict[str, dict]:
 
 
 def quota_usage(db: Session, now: datetime) -> dict[str, float | None]:
+    # A node with an expired login reports an empty error snapshot; it must not hide another node's real usage.
     latest = db.scalars(select(QuotaSnapshot).where(QuotaSnapshot.at >= now - QUOTA_FRESH)
-                        .order_by(QuotaSnapshot.provider, QuotaSnapshot.at.desc())).all()
+                        .order_by(QuotaSnapshot.provider, QuotaSnapshot.error.is_not(None),
+                                  QuotaSnapshot.at.desc())).all()
     windows: dict[str, list[dict]] = {}
     for snap in latest:
         windows.setdefault(snap.provider, snap.windows)
