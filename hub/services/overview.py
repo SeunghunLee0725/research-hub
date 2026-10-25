@@ -54,6 +54,7 @@ class ProjectView:
     home_node: str | None = None
     starts_on: date | None = None
     ends_on: date | None = None
+    closed_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ def _project_views(db: Session) -> tuple[ProjectView, ...]:
               .outerjoin(Node, Node.id == Task.node_id)
               .where(Task.status.not_in(TASK_FINISHED)).subquery())
     rows = db.execute(select(Project.slug, Project.name, Project.kind, Project.starts_on, Project.ends_on, Project.node_selector,
+                             Project.closed_at,
                              active.c.id, active.c.title, active.c.status, active.c.node, active.c.updated_at)
                       .outerjoin(active, active.c.project_id == Project.id)
                       .order_by(Project.name)).all()
@@ -113,11 +115,11 @@ def _project_views(db: Session) -> tuple[ProjectView, ...]:
 def _project_view(db: Session, r) -> ProjectView:
     event = db.scalar(select(Event).where(Event.task_id == r.id).order_by(Event.id.desc()).limit(1)) if r.id else None
     step = db.scalar(select(Step).where(Step.task_id == r.id).order_by(Step.id.desc()).limit(1)) if r.id else None
-    return ProjectView(slug=r.slug, name=r.name, status=r.status or "idle", task_title=r.title, node=r.node,
+    return ProjectView(slug=r.slug, name=r.name, status="closed" if r.closed_at else r.status or "idle", task_title=r.title, node=r.node,
                        updated_at=r.updated_at, task_id=r.id, last_event=event.message if event else None,
                        last_event_at=event.at if event else None, step_kind=step.kind if step else None,
                        step_status=step.status if step else None, step_started_at=step.started_at if step else None,
-                       kind=r.kind, starts_on=r.starts_on, ends_on=r.ends_on,
+                       kind=r.kind, starts_on=r.starts_on, ends_on=r.ends_on, closed_at=r.closed_at,
                        home_node=next((x.removeprefix("node:") for x in r.node_selector or () if x.startswith("node:")), None))
 
 

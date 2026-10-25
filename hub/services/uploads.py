@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hub.db.models import Node, Project, Upload
+from hub.services.projects import ensure_open
 
 MAX_BYTES = 50 * 1024 * 1024
 _SAFE = re.compile(r"[^\w .()\[\]+,@=-]", re.UNICODE)
@@ -22,6 +23,7 @@ def target_path(filename: str) -> str:
 
 
 def add_upload(db: Session, project: Project, filename: str, data: bytes) -> Upload:
+    ensure_open(project)
     if len(data) > MAX_BYTES:
         raise ValueError(f"{filename}: 파일이 너무 큽니다(최대 {MAX_BYTES // 1024 // 1024}MB)")
     upload = Upload(project_id=project.id, path=target_path(filename), size=len(data),

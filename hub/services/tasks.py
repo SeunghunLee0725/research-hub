@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from hub.db.models import TASK_FINISHED, Approval, Event, Project, Step, Task
 from hub.services import human
+from hub.services.projects import ensure_open
 
 
 def create_task(db: Session, project: Project, title: str, objective: str,
                 success_criteria: str | None, parent_task_id: int | None = None) -> Task:
+    ensure_open(project)
     task = Task(project_id=project.id, title=title, objective=objective, success_criteria=success_criteria,
                 status="proposed", parent_task_id=parent_task_id)
     db.add(task)
@@ -77,14 +79,14 @@ def approve_result(db: Session, task: Task, option_index: int | None, now: datet
     return follow
 
 
-def cancel(db: Session, task: Task, now: datetime) -> None:
+def cancel(db: Session, task: Task, now: datetime, message: str = "사용자가 작업 취소") -> None:
     if task.status in ("done", "cancelled"):
         raise ValueError("이미 끝난 작업입니다")
     approval = pending_approval(db, task)
     if approval is not None:
         approval.status, approval.decided_at = "rejected", now
     task.status = "cancelled"
-    db.add(Event(task_id=task.id, level="warn", message="사용자가 작업 취소"))
+    db.add(Event(task_id=task.id, level="warn", message=message))
     db.commit()
 
 

@@ -62,6 +62,9 @@ class Project(Base):
     kind: Mapped[str] = mapped_column(String(16), default="research", server_default="research")
     starts_on: Mapped[date | None] = mapped_column(Date)
     ends_on: Mapped[date | None] = mapped_column(Date)
+    # A closed project takes no new tasks; its records stay in the hub and its workdir stays on the node.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

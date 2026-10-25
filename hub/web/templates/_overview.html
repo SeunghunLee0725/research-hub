@@ -71,7 +71,7 @@
 <section>
   <div class="header-actions"><h2>프로젝트</h2><span><a class="pill idle" href="/gantt">간트 차트</a> <a class="pill idle" href="/board">진행 보드</a> <a class="pill run" href="/projects/new">+ 새 프로젝트</a></span></div>
   {% set today = local_date(now, tz) %}
-  {% for kind, label in KIND.items() %}{% set rows = view.projects | selectattr("kind", "equalto", kind) | list %}
+  {% for kind, label in KIND.items() %}{% set rows = view.projects | selectattr("kind", "equalto", kind) | rejectattr("status", "equalto", "closed") | list %}
   <h3 class="kind-head"><span class="kind-tag kind-{{ kind }}">{{ label }}</span> <span class="muted small">{{ rows|length }}개</span></h3>
   <table class="projects">
     <thead><tr><th>프로젝트</th><th>상태</th><th>현재 작업</th><th>머신</th><th>기간</th><th>최근 소식</th></tr></thead>
@@ -92,5 +92,11 @@
     </tbody>
   </table>
   {% endfor %}
+  {% set closed = view.projects | selectattr("status", "equalto", "closed") | list %}
+  {% if closed %}
+  <details class="item"><summary>종료된 프로젝트 {{ closed|length }}개 <span class="muted small">기록·작업 폴더 보관 중</span></summary>
+    <ul class="tasklist">{% for p in closed %}<li><a href="/projects/{{ p.slug }}">{{ p.name }}</a> <span class="muted small">{{ KIND[p.kind] }} · {{ local_time(p.closed_at, tz) }} 종료</span></li>{% endfor %}</ul>
+  </details>
+  {% endif %}
 </section>
 <p class="muted small footer">{{ local_time(now, tz) }} 기준 · 10초마다 자동 갱신</p>

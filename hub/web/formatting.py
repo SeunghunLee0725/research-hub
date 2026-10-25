@@ -11,6 +11,7 @@ STATUS_LABELS = {
     "problem": ("문제", "확인 필요", "bad"),
     "done": ("완료", "", "ok"),
     "cancelled": ("취소", "", "idle"),
+    "closed": ("종료", "데이터 보관 중", "idle"),
 }
 STEP_STATUS = {"pending": ("대기", "idle"), "leased": ("시작", "run"), "running": ("진행 중", "run"),
                "succeeded": ("완료", "ok"), "failed": ("실패", "bad"), "lost": ("끊김", "bad")}

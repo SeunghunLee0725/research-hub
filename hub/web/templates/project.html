@@ -5,7 +5,18 @@
   {% if p.workdir_status %}{% if p.workdir_status.ok %}<span class="pill ok">폴더 준비됨</span>{% else %}<span class="pill bad">폴더 문제: {{ p.workdir_status.error }}</span>{% endif %}{% else %}<span class="pill idle">폴더 확인 전</span>{% endif %}</div>
 <h1 class="title"><span class="kind-tag kind-{{ p.kind }}">{{ KIND[p.kind] }}</span> {{ p.name }}</h1>
 {% if p.starts_on or p.ends_on %}<div class="muted small">기간 {{ period_text(p.starts_on, p.ends_on, local_date(now, tz)) }}</div>{% endif %}
+{% if p.closed_at %}
+<section class="card">
+  <p><span class="pill idle">종료됨</span> {{ local_time(p.closed_at, tz) }}{% if p.closed_note %} · {{ p.closed_note }}{% endif %}</p>
+  <p class="muted small">작업 {{ tasks|length }}건의 기록·결과 카드·올린 자료는 허브에, 작업 폴더 {{ p.workdir }} 는 {{ node }} 에 그대로 남아 있습니다. 새 작업은 만들어지지 않습니다.</p>
+  <form class="inline" method="post" action="/projects/{{ p.slug }}/reopen">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="secondary small">다시 열기</button>
+  </form>
+</section>
+{% endif %}
 
+{% if not p.closed_at %}
 <section>
   <h2>자료 올리기</h2>
   <div id="dropzone" class="dropzone" data-url="/projects/{{ p.slug }}/uploads" data-csrf="{{ csrf }}">
@@ -20,13 +31,21 @@
   </tbody></table>
   {% endif %}
 </section>
+{% elif files %}
+<section>
+  <h2>올린 자료</h2>
+  <table class="files"><thead><tr><th>파일</th><th>크기</th></tr></thead><tbody>
+  {% for f in files %}<tr><td>{{ f.path }}</td><td>{{ (f.size / 1024)|round(1) }} KB</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endif %}
 
 <section>
   <h2>작업</h2>
   {% if active %}
   <p>진행 중: <a href="/tasks/{{ active.id }}">{{ active.title }}</a> <span class="pill {{ STATUS[active.status][2] }}">{{ STATUS[active.status][0] }}</span></p>
   <p class="muted small">프로젝트당 작업은 하나씩 진행합니다. 끝나면 새 작업을 등록할 수 있습니다.</p>
-  {% else %}
+  {% elif not p.closed_at %}
   {% if last %}
   <form class="inline" method="post" action="/projects/{{ p.slug }}/resume">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -56,6 +75,16 @@
     <label>배경 지시<textarea name="context" rows="6" maxlength="20000">{{ p.context or '' }}</textarea></label>
     <button class="secondary">저장</button>
   </form>
+  {% if not p.closed_at %}
+  <form class="card stack" method="post" action="/projects/{{ p.slug }}/close">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <h3>프로젝트 종료</h3>
+    <p class="muted small">끝난 프로젝트를 닫습니다. 진행 중이거나 대기 중인 작업은 취소되고 에이전트가 후속 작업을 만들지 않습니다. 작업 기록·결과·올린 자료(허브)와 작업 폴더({{ node }}:{{ p.workdir }})는 지우지 않으며, 언제든 다시 열 수 있습니다.</p>
+    <label>종료 메모 <span class="muted small">선택 — 최종 결론, 보고서 위치 등</span><textarea name="note" rows="2" maxlength="4000"></textarea></label>
+    <label class="small"><input type="checkbox" name="confirm" value="1" required> 이 프로젝트를 종료합니다</label>
+    <button class="secondary">프로젝트 종료</button>
+  </form>
+  {% endif %}
 </section>
 {% endblock %}
 {% block scripts %}<script src="/static/upload.js" defer></script>{% endblock %}

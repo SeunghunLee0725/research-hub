@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from hub.api.envelope import ok
 from hub.db.models import PROJECT_KINDS, Node, Project, Task, Upload
 from hub.db.session import get_db
-from hub.services import tasks, uploads
+from hub.services import projects, tasks, uploads
 from hub.web.actions import CSRF_KEY, csrf_token
 from hub.web.auth import is_admin
 from hub.web.routes import templates
@@ -117,6 +117,8 @@ async def upload_files(slug: str, request: Request, db: Db, files: list[UploadFi
     _admin(request)
     _check_csrf(request, request.headers.get("X-CSRF-Token", ""))
     project = _project(db, slug)
+    if project.closed_at is not None:
+        raise HTTPException(409, "종료된 프로젝트에는 자료를 올릴 수 없습니다")
     if len(files) > MAX_FILES_PER_REQUEST:
         raise HTTPException(413, f"한 번에 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다")
     saved = []
@@ -138,6 +140,8 @@ def add_task(slug: str, request: Request, db: Db, csrf: Text(128), title: Text(2
     project = _project(db, slug)
     try:
         task = tasks.create_task(db, project, title.strip(), objective.strip(), criteria.strip() or None)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(409, "이 프로젝트에는 진행 중인 작업이 있습니다(프로젝트당 1개)") from exc
@@ -169,4 +173,29 @@ def update_settings(slug: str, request: Request, db: Db, csrf: Text(128), name: 
     project.name, project.context = name.strip() or project.name, context.strip() or None
     project.kind, project.starts_on, project.ends_on = kind, start, end
     db.commit()
+    return RedirectResponse(f"/projects/{slug}", status_code=303)
+
+
+@router.post("/projects/{slug}/close")
+def close_project(slug: str, request: Request, db: Db, csrf: Text(128), confirm: Text(4) = "", note: Text(4000) = ""):
+    """End a finished project. Its tasks, results and uploads stay in the hub; its workdir stays on the node."""
+    _admin(request)
+    _check_csrf(request, csrf)
+    if confirm != "1":
+        raise HTTPException(422, "종료 확인에 체크하세요")
+    try:
+        projects.close_project(db, _project(db, slug), _now(), note.strip() or None)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return RedirectResponse(f"/projects/{slug}", status_code=303)
+
+
+@router.post("/projects/{slug}/reopen")
+def reopen_project(slug: str, request: Request, db: Db, csrf: Text(128)):
+    _admin(request)
+    _check_csrf(request, csrf)
+    try:
+        projects.reopen_project(db, _project(db, slug))
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return RedirectResponse(f"/projects/{slug}", status_code=303)
