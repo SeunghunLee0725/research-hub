@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from hub.services.director_schemas import CharterResult, DirectResult
+
 RETRY_LIMIT = 3
 RETRYABLE = {"timeout", "no_result", "bad_result", "lost", "tool_error"}
 # A shell command that exits non-zero or times out will almost always do so again; only a lost node is retried.
@@ -174,12 +176,13 @@ class ApproveResult(_Strict):
 
 RESULT_MODELS = {"plan": PlanResult, "implement": ImplementResult, "run": RunResult, "review": ReviewResult,
                  "analyze": AnalyzeResult, "verify": VerifyResult, "report": ReportResult,
-                 "approve": ApproveResult, "diagnose": DiagnoseResult}
+                 "approve": ApproveResult, "diagnose": DiagnoseResult, "charter": CharterResult,
+                 "direct": DirectResult}
 
 
 def validate_result(kind: str, result: dict | None) -> dict:
     try:
-        return RESULT_MODELS[kind].model_validate(result or {}).model_dump()
+        return RESULT_MODELS[kind].model_validate(result or {}).model_dump(mode="json")
     except ValidationError as exc:
         first = exc.errors()[0]
         where = ".".join(str(part) for part in first["loc"]) or "(최상위)"

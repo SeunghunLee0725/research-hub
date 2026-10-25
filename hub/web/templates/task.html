@@ -101,6 +101,8 @@
 </section>
 {% endif %}
 
+{% if d.decision %}{% set row = d.decision %}{% set slug = d.project.slug %}{% include "_director_pending.html" %}{% endif %}
+
 {% if t.result_card %}{% set c = t.result_card %}
 <section class="card result">
   <h2>결과</h2>

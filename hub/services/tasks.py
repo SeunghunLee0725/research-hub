@@ -52,23 +52,33 @@ def open_result_approval(db: Session, task: Task) -> None:
 
 
 def approve_result(db: Session, task: Task, option_index: int | None, now: datetime,
-                   review_by: str | None = None, decided_by: str = "human") -> Task | None:
-    """Accept the result. With an option index, the chosen next task starts right away (one click)."""
+                   review_by: str | None = None, decided_by: str = "human",
+                   follow_up: dict | None = None) -> Task | None:
+    """Accept the result. With an option index, the chosen next task starts right away (one click).
+    follow_up ({title, objective, success_criteria}) starts a task the director wrote instead of an option."""
     options = (task.result_card or {}).get("next_options", [])
     if option_index is not None and not 0 <= option_index < len(options):
         raise ValueError("다음 작업 선택이 올바르지 않습니다")
-    choice = {"option": option_index, "title": options[option_index]["title"]} if option_index is not None else {"option": None}
+    if follow_up is not None:
+        choice = {"option": None, "title": follow_up["title"], "via": "director"}
+    elif option_index is not None:
+        choice = {"option": option_index, "title": options[option_index]["title"]}
+    else:
+        choice = {"option": None}
     _decide(db, task, "result", "approved", now, choice, decided_by)
     task.status = "done"
     who = "" if decided_by == "human" else f" (에이전트 {decided_by.removeprefix('agent:')})"
     db.add(Event(task_id=task.id, message=f"결과 승인 — 완료{who}"))
     db.flush()
-    if option_index is None:
+    if option_index is None and follow_up is None:
         db.commit()
         return None
-    option = options[option_index]
-    follow = Task(project_id=task.project_id, parent_task_id=task.id, title=option["title"][:200],
-                  objective=f"{option['why']}\n\n(이전 작업 #{task.id} \"{task.title}\"의 결과에서 이어짐)",
+    if follow_up is None:
+        option = options[option_index]
+        follow_up = {"title": option["title"], "success_criteria": None,
+                     "objective": f"{option['why']}\n\n(이전 작업 #{task.id} \"{task.title}\"의 결과에서 이어짐)"}
+    follow = Task(project_id=task.project_id, parent_task_id=task.id, title=follow_up["title"][:200],
+                  objective=follow_up["objective"], success_criteria=follow_up.get("success_criteria"),
                   status="approved", review_by=review_by)
     db.add(follow)
     db.flush()

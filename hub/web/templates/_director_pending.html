@@ -1,0 +1,36 @@
+{# 연구자 답을 기다리는 디렉터 판단 하나. row: DirectorDecision #}
+{% set ACTION = {"charter": "연구 헌장 확인", "budget": "예산 초과", "ask": "핵심 결론 충돌", "wrap_up": "프로젝트 마무리 제안", "hold": "결과 보류"} %}
+<section class="card director-ask" id="director-{{ row.id }}">
+  <h2>🧭 디렉터: {{ ACTION[row.action] }}</h2>
+  <p class="muted small">작업 #{{ row.task_id }} · {{ row.model or '허브' }} · {{ ago(row.at, now) }}</p>
+  {% if row.action == 'charter' %}
+    <p>{{ row.reason }}</p>
+    <p><a class="pill wait" href="/projects/{{ slug }}#charter">헌장 초안 확인·수정하고 확정하기 ›</a></p>
+  {% elif row.action == 'hold' %}
+    <p>{{ row.reason }}</p>
+    <p class="muted small">이 작업 페이지의 "결과를 승인하고 다음을 고르세요"에서 직접 정해 주세요.</p>
+  {% else %}
+    <form class="stack" method="post" action="/director/{{ row.id }}/answer">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if row.action == 'budget' %}
+        <p>{{ row.payload.question }}</p>
+        <p class="small muted">디렉터 판단 근거: {{ row.reason }}</p>
+        <label class="option"><input type="radio" name="choice" value="extend" checked><span>예산을 늘리고 디렉터 계획대로 계속</span></label>
+        <div class="dates"><label>작업 추가<input name="extend_tasks" type="number" min="0" max="50" value="5"></label>
+          <label>실행 시간 추가<input name="extend_hours" type="number" min="0" step="0.5" placeholder="시간"></label>
+          <label>새 마감<input name="deadline" type="date"></label></div>
+        <label class="option"><input type="radio" name="choice" value="마무리하라"><span>여기서 마무리 — 디렉터가 종합 보고를 쓰고 종료를 제안</span></label>
+      {% elif row.action == 'ask' %}
+        <p><strong>{{ row.payload.question }}</strong></p>
+        <p class="small muted">{{ row.reason }}</p>
+        {% for o in row.payload.options %}<label class="option"><input type="radio" name="choice" value="{{ o }}" {% if loop.first %}checked{% endif %}><span>{{ o }}</span></label>{% endfor %}
+      {% elif row.action == 'wrap_up' %}
+        <div class="prewrap">{{ row.payload.summary }}</div>
+        <label class="option"><input type="radio" name="choice" value="close" checked><span>종료 승인 — 기록과 작업 폴더는 그대로 남깁니다</span></label>
+        <label class="option"><input type="radio" name="choice" value="종료하지 말고 계속"><span>아직 아님 — 아래 메모대로 계속</span></label>
+      {% endif %}
+      <label>메모 <span class="muted small">디렉터에게 전할 지시(선택)</span><textarea name="comment" rows="2" maxlength="2000"></textarea></label>
+      <button>답하기</button>
+    </form>
+  {% endif %}
+</section>

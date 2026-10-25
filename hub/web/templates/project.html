@@ -64,6 +64,8 @@
   {% if tasks %}<ul class="tasklist">{% for t in tasks %}<li><a href="/tasks/{{ t.id }}">#{{ t.id }} {{ t.title }}</a> <span class="pill {{ STATUS[t.status][2] }}">{{ STATUS[t.status][0] }}</span></li>{% endfor %}</ul>{% endif %}
 </section>
 
+{% include "_director.html" %}
+
 <section>
   <h2>설정</h2>
   <form class="card stack" method="post" action="/projects/{{ p.slug }}/settings">

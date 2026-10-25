@@ -1,0 +1,52 @@
+{# 프로젝트 페이지의 디렉터 영역. dir: director context #}
+<section id="director">
+  <div class="header-actions"><h2>🧭 디렉터</h2>
+    <form class="inline" method="post" action="/projects/{{ p.slug }}/director">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if p.director_enabled %}<span class="pill ok">맡김</span> <button class="secondary small" name="enabled" value="0">디렉터 끄기</button>
+      {% else %}<span class="pill idle">꺼짐</span> <button class="secondary small" name="enabled" value="1">디렉터에게 맡기기</button>{% endif %}
+    </form></div>
+  {% if p.director_enabled %}
+  <p class="muted small">작업이 끝날 때마다 디렉터가 결과를 승인하고 다음 작업을 정합니다. 예산 초과·핵심 결론 충돌·프로젝트 종료만 연구자에게 묻습니다.</p>
+  {% for row in dir.pending %}{% set slug = p.slug %}{% include "_director_pending.html" %}{% endfor %}
+  {% if not p.charter and not active and not p.closed_at %}
+  <form class="inline" method="post" action="/projects/{{ p.slug }}/kickoff">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="small">디렉터 착수</button>
+    <span class="muted small">지금까지의 결과를 정리하는 작업 하나를 돌린 뒤, 디렉터가 연구 헌장 초안을 씁니다.</span>
+  </form>
+  {% elif not p.charter %}
+  <p class="muted small">헌장이 아직 없습니다. 진행 중인 작업이 끝나면 디렉터가 헌장 초안을 씁니다.</p>
+  {% endif %}
+
+  {% if p.charter %}{% set c = p.charter %}
+  <div class="card">
+    <p><strong>최종 질문</strong> {{ c.question }}
+      {% if p.charter_confirmed_at %}<span class="pill ok">확정 {{ local_time(p.charter_confirmed_at, tz) }}</span>{% else %}<span class="pill wait">초안 — 확인 필요</span>{% endif %}</p>
+    <ul class="tasklist">{% for m in c.milestones %}<li>{{ {"done": "✅", "dropped": "⏭", "open": "⬜"}[m.status] }} <strong>{{ m.id }}</strong> {{ m.title }} <span class="muted small">— {{ m.done_when }}</span></li>{% endfor %}</ul>
+    <p class="small">예산: 작업 {{ dir.usage.tasks_used }}/{{ dir.usage.max_tasks }}개 · 머신 실행 {{ '%.1f' % dir.usage.run_hours }}{% if dir.usage.max_run_hours %}/{{ dir.usage.max_run_hours }}{% endif %}시간 · 마감 {{ dir.usage.deadline or '없음' }}
+      {% if dir.stall >= 5 %}<span class="pill warn">마일스톤 진척 없이 {{ dir.stall }}개째</span>{% endif %}</p>
+  </div>
+  <details class="item" id="charter" {% if not p.charter_confirmed_at %}open{% endif %}><summary>헌장 {{ '확인·확정' if not p.charter_confirmed_at else '수정' }}</summary>
+    <form class="stack" method="post" action="/projects/{{ p.slug }}/charter">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>최종 질문<textarea name="question" rows="2" maxlength="1000" required>{{ c.question }}</textarea></label>
+      <label>마일스톤 <span class="muted small">한 줄에 하나: M1 | 제목 | 완료 조건 | 진행/완료/제외</span><textarea name="milestones" rows="6" maxlength="8000" required>{{ dir.milestones_text }}</textarea></label>
+      <label>산출물 <span class="muted small">한 줄에 하나</span><textarea name="deliverables" rows="3" maxlength="4000">{{ c.deliverables | join('\n') }}</textarea></label>
+      <label>하지 말 것 <span class="muted small">한 줄에 하나</span><textarea name="boundaries" rows="3" maxlength="6000">{{ c.boundaries | join('\n') }}</textarea></label>
+      <div class="dates"><label>작업 수 상한<input name="max_tasks" type="number" min="1" max="200" value="{{ c.budget.max_tasks }}" required></label>
+        <label>실행 시간 상한<input name="max_run_hours" type="number" min="0" step="0.5" value="{{ c.budget.max_run_hours or '' }}" placeholder="시간(선택)"></label>
+        <label>마감<input name="deadline" type="date" value="{{ c.budget.deadline or '' }}"></label></div>
+      <button>{{ '헌장 확정 — 디렉터에게 맡기기' if not p.charter_confirmed_at else '헌장 저장' }}</button>
+    </form>
+  </details>
+  {% endif %}
+
+  {% if dir.recent %}
+  <details class="item"><summary>연구 일지 (최근 {{ dir.recent|length }}건)</summary>
+    <ul class="tasklist">{% for r in dir.recent|reverse %}<li><span class="muted small">{{ local_time(r.at, tz) }}</span> <a href="/tasks/{{ r.task_id }}">#{{ r.task_id }}</a> <strong>{{ r.action }}</strong>
+      {{ r.payload.journal or r.reason }}{% if r.status == 'answered' and r.answer %} <span class="muted small">→ 연구자: {{ r.answer.text }}</span>{% endif %}{% if r.model %} <span class="muted small">{{ r.model }}</span>{% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+  {% endif %}
+</section>

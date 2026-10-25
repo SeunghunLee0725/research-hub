@@ -6,7 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from hub.db.models import Approval, Event, HumanRequest, Project, QuotaSnapshot, Step, Task
-from hub.services import human, router
+from hub.services import director, human, router
+from hub.services.director_prompts import DIRECTION_PATH
 from hub.services import tasks as task_service
 from hub.services.pipeline import StepOutcome, enforce_trust, next_kind, retry_decision, run_spec
 import json
@@ -48,7 +49,7 @@ def _new_step(db: Session, task: Task, seq: int, kind: str, attempt: int, spec: 
                 input={})
     db.add(step)
     db.flush()
-    files = human.submitted_files(db, task)
+    files = {**human.submitted_files(db, task), **director.direction_files(db, project)}
     if kind == "review":
         request = human.open_request(db, task)
         form_path = f".research-hub/steps/{step.id}/form.json"
@@ -104,10 +105,14 @@ def _auto_start_proposed(db: Session, now: datetime) -> None:
 def _decide_result_gates(db: Session, now: datetime, usage: dict[str, float | None]) -> None:
     """Put a review-gate task in front of the agent, unless a step is already doing that."""
     for task in db.scalars(select(Task).where(Task.status == "review")).all():
-        if not db.get(Project, task.project_id).auto_approve:
+        project = db.get(Project, task.project_id)
+        if not project.auto_approve:
             continue
         approval = task_service.pending_approval(db, task)
         if approval is None or approval.kind != "result":
+            continue
+        if director.is_active(project):
+            _guarded(db, task, "디렉터 판단", lambda t=task, p=project: director.gate(db, t, p, now, usage))
             continue
         latest = _latest_step(db, task)
         if latest is not None and latest.status in ("pending", "leased", "running"):
@@ -304,8 +309,10 @@ def _rerun_with_new_input(db: Session, task: Task, step: Step) -> bool:
     if latest is None or step.ended_at is None:
         return False
     files = human.submitted_files(db, task)
-    if files == step.input.get("files") and latest.submitted_at <= step.ended_at:
+    previous = {k: v for k, v in (step.input.get("files") or {}).items() if k != DIRECTION_PATH}
+    if files == previous and latest.submitted_at <= step.ended_at:
         return False
+    files = {**files, **director.direction_files(db, db.get(Project, task.project_id))}
     db.add(Step(task_id=task.id, seq=step.seq, kind=step.kind, model=step.model, attempt=step.attempt + 1,
                 input={**step.input, "files": files}))
     db.add(Event(task_id=task.id, step_id=step.id, message=f"새 입력으로 {step.kind} 단계 다시 실행"))

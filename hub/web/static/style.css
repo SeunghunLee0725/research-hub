@@ -320,3 +320,6 @@ a.kpi:hover { text-decoration: none; }
 }
 body.mobile:not(.m-site) { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
 body.mobile .menu { display: none; }
+
+.prewrap { white-space: pre-wrap; }
+.director-ask { border-left: 4px solid var(--run); }

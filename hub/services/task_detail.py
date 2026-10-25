@@ -4,10 +4,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hub.db.models import Approval, Event, HumanRequest, Media, Node, Project, Step, Task
-from hub.services import human
+from hub.services import director, human
 
 STEP_LABELS = {"plan": "계획", "implement": "구현", "run": "실행", "review": "LLM 판정", "analyze": "분석", "verify": "검증", "report": "보고",
-               "approve": "승인 판정", "diagnose": "진단"}
+               "approve": "승인 판정", "diagnose": "진단", "charter": "헌장 초안", "direct": "방향 판단"}
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class TaskDetail:
     media: dict | None = None
     reopenable: bool = False
     fix: Approval | None = None
+    decision: object | None = None  # DirectorDecision waiting for the researcher
 
 
 def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None:
@@ -37,4 +38,5 @@ def load(db: Session, task_id: int, event_limit: int = 100) -> TaskDetail | None
     fix = db.scalar(select(Approval).where(Approval.task_id == task_id, Approval.kind == "fix",
                                            Approval.status == "pending"))
     return TaskDetail(task, db.get(Project, task.project_id), node.name if node else None,
-                      tuple(steps), tuple(events), request, media, reopenable, fix)
+                      tuple(steps), tuple(events), request, media, reopenable, fix,
+                      director.pending_decision(db, task))

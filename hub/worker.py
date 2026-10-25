@@ -17,7 +17,8 @@ log = logging.getLogger("research-hub-worker")
 def cycle(db: Session, now: datetime, settings: Settings, sender, notify_now: bool) -> None:
     scheduler.tick(db, now)
     if notify_now and sender is not None:
-        notify.deliver(db, now, sender, settings.public_url.rstrip("/"), settings.offline_after_seconds)
+        notify.deliver(db, now, sender, settings.public_url.rstrip("/"), settings.offline_after_seconds,
+                       settings.timezone)
 
 
 def _sender(settings: Settings):

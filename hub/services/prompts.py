@@ -74,6 +74,7 @@ def build_prompt(kind: str, project: Project, task: Task, outputs: dict[str, dic
 ## 규칙
 - 가장 먼저 작업 디렉터리의 plan.md(프로젝트 계획)를 읽고 그 방향을 따른다. 없으면 없다고 기록하고 진행한다.
   사용자가 올린 관련 자료는 materials/ 에 있다.
+- .research-hub/direction.md(디렉터가 정한 연구 헌장·마일스톤·하지 말 것)가 있으면 읽고 그 범위를 지킨다.
 - 이 작업 하나에만 집중한다. 범위를 넓히지 않는다.
 - 판단·라벨·확인이 필요한 부분은 직접 채우지 말고, plan/implement 결과의 human_input 에 폼을 정의한다.
   폼은 기본적으로 에이전트가 채운다(사람을 기다리지 않는다). 답은 answers_path 에 JSONL(한 줄에 {{"id": 항목 id, 필드명: 값}},

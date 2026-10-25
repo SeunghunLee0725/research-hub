@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from hub.api.envelope import ok
 from hub.db.models import PROJECT_KINDS, Node, Project, Task, Upload
 from hub.db.session import get_db
-from hub.services import projects, tasks, uploads
+from hub.services import director, projects, tasks, uploads
+from hub.web.director import milestones_text
 from hub.web.actions import CSRF_KEY, csrf_token
 from hub.web.auth import is_admin
 from hub.web.routes import templates
@@ -71,7 +72,7 @@ def new_project(request: Request, db: Db):
 @router.post("/projects")
 def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), name: Text(200), node: Text(64),
                    workdir: Text(300) = "", context: Text(20000) = "", plan: Text(200000) = "",
-                   kind: Text(16) = "", starts_on: Text(10) = "", ends_on: Text(10) = ""):
+                   kind: Text(16) = "", starts_on: Text(10) = "", ends_on: Text(10) = "", director: Text(1) = ""):
     _admin(request)
     _check_csrf(request, csrf)
     kind, start, end = _kind_and_period(kind, starts_on, ends_on)
@@ -84,7 +85,8 @@ def create_project(request: Request, db: Db, csrf: Text(128), slug: Text(63), na
     if not (workdir.startswith("/") or workdir.startswith("~/")) or ".." in workdir.split("/"):
         raise HTTPException(422, "작업 폴더는 / 또는 ~/ 로 시작하는 경로여야 합니다")
     project = Project(slug=slug, name=name.strip() or slug, workdir=workdir, node_selector=[f"node:{node}"],
-                      context=context.strip() or None, kind=kind, starts_on=start, ends_on=end)
+                      context=context.strip() or None, kind=kind, starts_on=start, ends_on=end,
+                      director_enabled=director == "1")
     db.add(project)
     try:
         db.commit()
@@ -107,9 +109,15 @@ def project_page(slug: str, request: Request, db: Db):
     last = task_rows[0] if task_rows and active is None else None
     return templates.TemplateResponse(request, "project.html", {
         "p": project, "tasks": task_rows, "files": files, "active": active, "last": last,
-        "csrf": csrf_token(request),
+        "csrf": csrf_token(request), "dir": _director_context(db, project),
         "node": project.node_selector[0].removeprefix("node:") if project.node_selector else "-",
         "now": _now(), "tz": request.app.state.settings.timezone})
+
+
+def _director_context(db: Session, project: Project) -> dict:
+    return {"pending": director.pending_for_project(db, project), "recent": director.decisions(db, project, 15),
+            "usage": director.budget_usage(db, project, _now()), "stall": director.stall_count(db, project),
+            "milestones_text": milestones_text(project.charter)}
 
 
 @router.post("/projects/{slug}/uploads")

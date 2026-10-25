@@ -8,7 +8,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 TASK_STATUSES = ("proposed", "approved", "running", "waiting_human", "review", "problem", "done", "cancelled")
 TASK_FINISHED = ("done", "cancelled")
 STEP_KINDS = ("plan", "implement", "run", "review", "analyze", "verify", "report", "approve",
-              "diagnose")
+              "diagnose", "charter", "direct")
+GATE_KINDS = ("approve", "charter", "direct")  # steps that run while their task waits at the result gate
+DIRECTOR_STATUSES = ("applied", "pending", "answered")
 STEP_STATUSES = ("pending", "leased", "running", "succeeded", "failed", "lost")
 MODELS = ("claude", "codex", "none")
 PROVIDERS = ("claude", "codex")
@@ -65,6 +67,10 @@ class Project(Base):
     # A closed project takes no new tasks; its records stay in the hub and its workdir stays on the node.
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_note: Mapped[str | None] = mapped_column(Text)
+    # The director decides the next direction at every result gate, within the charter the researcher confirmed.
+    director_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    charter: Mapped[dict | None] = mapped_column(JSONB)
+    charter_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -232,3 +238,23 @@ class Upload(Base):
     written_path: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DirectorDecision(Base):
+    """What the project director decided at a task's result gate. "pending" waits for the researcher."""
+    __tablename__ = "director_decisions"
+    __table_args__ = (CheckConstraint(_in("status", DIRECTOR_STATUSES), name="director_status_valid"),
+                      Index("director_decisions_project_at", "project_id", "at"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    step_id: Mapped[int | None] = mapped_column(ForeignKey("steps.id", ondelete="SET NULL"))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # charter | continue | new_task | hold | ask | budget | wrap_up
+    action: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'"))
+    model: Mapped[str | None] = mapped_column(String(64))
+    answer: Mapped[dict | None] = mapped_column(JSONB)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -4,7 +4,7 @@ from sqlalchemy import and_, cast, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
-from hub.db.models import Event, Node, Project, Step, Task
+from hub.db.models import GATE_KINDS, Event, Node, Project, Step, Task
 from hub.services.pipeline import validate_result
 
 LEASE = timedelta(minutes=10)
@@ -26,7 +26,7 @@ def lease_step(db: Session, node: Node, now: datetime) -> Step | None:
         .where(Step.status == "pending", or_(Step.not_before.is_(None), Step.not_before <= now),
                # A task at its result gate is not running, but its approve step still needs a node.
                or_(Task.status == "running",
-                   and_(Task.status == "review", Step.kind == "approve"),
+                   and_(Task.status == "review", Step.kind.in_(GATE_KINDS)),
                    and_(Task.status == "problem", Step.kind == "diagnose")),
                or_(Task.node_id.is_(None), Task.node_id == node.id),
                Project.node_selector.op("<@")(cast(labels, JSONB)), Step.model.in_(models))
