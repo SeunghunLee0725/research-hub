@@ -27,6 +27,12 @@ def test_build_command_uses_sandbox_and_model(tmp_path):
     assert "-m" not in codex_runner.build_command("/bin/codex", None, "/w", "workspace-write", "/tmp/l")
 
 
+def test_build_command_sets_reasoning_effort():
+    cmd = codex_runner.build_command("/bin/codex", None, "/w", "workspace-write", "/tmp/l", "medium")
+    assert ["-c", "model_reasoning_effort=medium"] == cmd[cmd.index("-c"):cmd.index("-c") + 2]
+    assert "-c" not in codex_runner.build_command("/bin/codex", None, "/w", "workspace-write", "/tmp/l")
+
+
 def test_classify():
     assert codex_runner.classify(0, "", "done") is None
     assert codex_runner.classify(0, "", "sandbox failed (`bwrap: setting up uid map: Permission denied`)") == "sandbox"

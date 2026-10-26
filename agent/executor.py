@@ -21,10 +21,11 @@ def _last_line(text: str) -> str | None:
 
 class Executor:
     def __init__(self, client, state_dir: Path, claude_bin: str, model: str, use_systemd: bool = True,
-                 codex_bin: str = "codex", codex_model: str | None = None, codex_sandbox: str = "workspace-write"):
+                 codex_bin: str = "codex", codex_model: str | None = None, codex_sandbox: str = "workspace-write",
+                 codex_effort: str | None = None):
         self._client, self._state = client, state_dir
         self._claude_bin, self._model, self._use_systemd = claude_bin, model, use_systemd
-        self._codex = (codex_bin, codex_model, codex_sandbox)
+        self._codex = (codex_bin, codex_model, codex_sandbox, codex_effort)
         self._model_thread: threading.Thread | None = None
         self._progress_at: dict[int, float] = {}
 

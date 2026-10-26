@@ -45,7 +45,7 @@ def loop(cfg, home: Path) -> None:
     syncer = Syncer(client)
     executor = Executor(client, home / ".local/state/research-hub", _binary("claude", home), cfg.model,
                         codex_bin=_codex_bin(cfg, home), codex_model=cfg.codex_model,
-                        codex_sandbox=cfg.codex_sandbox) if cfg.execute else None
+                        codex_sandbox=cfg.codex_sandbox, codex_effort=cfg.codex_effort) if cfg.execute else None
     while True:
         now = time.monotonic()
         if executor is not None:

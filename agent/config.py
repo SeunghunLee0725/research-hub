@@ -12,6 +12,7 @@ class AgentConfig:
     codex_bin: str | None = None
     codex_model: str | None = None
     codex_sandbox: str = "workspace-write"
+    codex_effort: str | None = "medium"
 
 
 def _parse_env(text: str) -> dict[str, str]:
@@ -28,4 +29,5 @@ def load_config(path: Path) -> AgentConfig:
                        values.get("AGENT_EXECUTE", "1") not in ("0", "false", "no"),
                        values.get("AGENT_CLAUDE_MODEL") or values.get("AGENT_MODEL", "opus"),
                        values.get("AGENT_CODEX_BIN") or None, values.get("AGENT_CODEX_MODEL") or None,
-                       values.get("AGENT_CODEX_SANDBOX", "workspace-write"))
+                       values.get("AGENT_CODEX_SANDBOX", "workspace-write"),
+                       values.get("AGENT_CODEX_EFFORT", "medium") or None)

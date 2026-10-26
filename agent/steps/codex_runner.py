@@ -14,10 +14,13 @@ PATTERNS = (
 )
 
 
-def build_command(codex_bin: str, model: str | None, workdir: str, sandbox: str, last_path: str) -> list[str]:
+def build_command(codex_bin: str, model: str | None, workdir: str, sandbox: str, last_path: str,
+                  effort: str | None = None) -> list[str]:
     cmd = [codex_bin, "exec"]
     if model:
         cmd += ["-m", model]
+    if effort:
+        cmd += ["-c", f"model_reasoning_effort={effort}"]
     return [*cmd, "-s", sandbox, "-C", workdir, "--skip-git-repo-check", "--ephemeral",
             "--color", "never", "-o", last_path, "-"]
 
@@ -30,12 +33,13 @@ def classify(returncode: int, output: str, last_message: str) -> str | None:
     return None if returncode == 0 else "tool_error"
 
 
-def run_model_step(step: dict, codex_bin: str, model: str | None, sandbox: str) -> tuple[str, dict | None, str | None]:
+def run_model_step(step: dict, codex_bin: str, model: str | None, sandbox: str,
+                   effort: str | None = None) -> tuple[str, dict | None, str | None]:
     result_path = prepare(step["result_path"])
     with tempfile.TemporaryDirectory(prefix="rh-codex-") as tmp:
         last_path = os.path.join(tmp, "last.txt")
         try:
-            proc = subprocess.run(build_command(codex_bin, model, step["workdir"], sandbox, last_path),
+            proc = subprocess.run(build_command(codex_bin, model, step["workdir"], sandbox, last_path, effort),
                                   input=step["prompt"], capture_output=True, text=True,
                                   timeout=float(step["timeout_minutes"]) * 60)
         except subprocess.TimeoutExpired:

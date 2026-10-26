@@ -88,3 +88,6 @@ def test_load_config_codex_options(tmp_path):
     cfg = load_config(env)
     assert (cfg.codex_bin, cfg.codex_model, cfg.codex_sandbox, cfg.model) == \
         ("/opt/codex", "gpt-5.6-sol", "workspace-write", "opus")
+    assert cfg.codex_effort == "medium"
+    env.write_text(env.read_text() + "AGENT_CODEX_EFFORT=low\n")
+    assert load_config(env).codex_effort == "low"
