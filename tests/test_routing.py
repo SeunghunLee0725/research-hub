@@ -11,11 +11,12 @@ CARD = {"conclusion": "c", "what_we_did": "w", "metrics": [], "trust": {"verifie
 
 def test_preferred_models():
     assert [router.choose_model(k, {}) for k in ("plan", "implement", "run", "analyze", "verify", "report")] == \
-        ["claude", "codex", "none", "claude", "codex", "claude"]
+        ["claude", "claude", "none", "claude", "codex", "claude"]
 
 
 def test_quota_pressure_switches_model():
-    assert router.choose_model("implement", {"codex": 92.0, "claude": 30.0}) == "claude"
+    assert router.choose_model("verify", {"codex": 92.0, "claude": 30.0}) == "claude"
+    assert router.choose_model("implement", {"claude": 92.0, "codex": 30.0}) == "codex"
     assert router.choose_model("plan", {"claude": 90.0, "codex": 10.0}) == "codex"
     assert router.choose_model("plan", {"claude": 90.0, "codex": 95.0}) == "claude"
     assert router.choose_model("run", {"claude": 99.0}) == "none"

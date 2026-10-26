@@ -1,5 +1,5 @@
 """Chooses Claude or Codex for each step: role-based default, quota pressure, and error fallback."""
-PREFERRED = {"plan": "claude", "implement": "codex", "run": "none", "review": "claude",
+PREFERRED = {"plan": "claude", "implement": "claude", "run": "none", "review": "claude",
              "analyze": "claude", "verify": "codex", "report": "claude", "approve": "claude",
              "diagnose": "claude", "charter": "claude", "direct": "claude"}
 PRESSURE_PCT = 85.0
