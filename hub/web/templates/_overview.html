@@ -34,6 +34,7 @@
       <dl>
         <dt>GPU</dt><dd>{% if n.gpu_util %}{% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span> {% endfor %}{% else %}-{% endif %}
           {% for used, total in n.gpu_mem %}<span class="muted small">VRAM {{ ((used or 0) / 1024)|round(1) }} / {{ (total / 1024)|round|int }} GB</span>{% endfor %}</dd>
+        <dt>CPU</dt><dd>{% if n.cpu_pct is not none %}<span class="{{ pct_level(n.cpu_pct) }}">{{ n.cpu_pct|round|int }}%</span>{% else %}-{% endif %}{% if n.cpu_cores %} <span class="muted small">{{ n.cpu_cores }}코어</span>{% endif %}</dd>
         <dt>메모리</dt><dd>{% if n.mem_total_mb %}{{ (n.mem_used_mb / 1024)|round|int }} / {{ (n.mem_total_mb / 1024)|round|int }} GB{% else %}-{% endif %}</dd>
         <dt>디스크</dt><dd>{% if n.disk_total_gb %}{{ n.disk_used_gb|round|int }} / {{ n.disk_total_gb|round|int }} GB{% else %}-{% endif %}</dd>
         <dt>Claude</dt><dd><span class="pill {{ LOGIN[n.claude][1] }}">{{ LOGIN[n.claude][0] }}</span> {{ n.claude_plan or '' }}</dd>

@@ -40,6 +40,7 @@
   {% for n in view.nodes %}{% set st = NODE[n.state] %}
     <div class="m-node">
       <span class="dot {{ st[1] }}"></span><strong>{{ n.name }}</strong>
+      <span class="small">CPU {% if n.cpu_pct is not none %}<span class="{{ pct_level(n.cpu_pct) }}">{{ n.cpu_pct|round|int }}%</span>{% else %}-{% endif %}</span>
       <span class="small">GPU {% for u in n.gpu_util %}<span class="{{ pct_level(u) }}">{{ u if u is not none else '-' }}%</span>{% else %}-{% endfor %}{% for used, total in n.gpu_mem %} <span class="muted">{{ (total / 1024)|round|int }}GB</span>{% endfor %}</span>
       <span class="small m-logins">Claude<span class="dot {{ LOGIN[n.claude][1] }}"></span> Codex<span class="dot {{ LOGIN[n.codex][1] }}"></span> · {{ ago(n.last_seen_at, now) }}</span>
     </div>

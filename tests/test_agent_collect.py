@@ -23,6 +23,7 @@ def test_run_handles_missing_binary_and_stderr(tmp_path):
 def test_system_collect_reports_disk():
     metrics = system.collect("/")
     assert metrics["disk_total_gb"] > 0 and len(metrics["load"]) == 3
+    assert metrics["cpu_cores"] >= 1
 
 
 def test_logins_collect_with_fake_clis(tmp_path):

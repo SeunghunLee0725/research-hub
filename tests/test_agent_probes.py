@@ -6,7 +6,7 @@ import pytest
 from agent.probes.gpu import parse_gpu_csv, parse_gpu_procs
 from agent.probes.logins import codex_plan, parse_claude_status, parse_codex_status
 from agent.probes.quota import TokenUnavailable, claude_access_token, claude_windows, codex_windows
-from agent.probes.system import parse_meminfo
+from agent.probes.system import cpu_percent, parse_cpu_stat, parse_meminfo
 
 
 def test_parse_gpu_csv_handles_unified_memory():
@@ -32,6 +32,14 @@ def test_parse_gpu_procs():
 def test_parse_meminfo():
     text = "MemTotal:       125829120 kB\nMemFree: 1 kB\nMemAvailable:    94371840 kB\n"
     assert parse_meminfo(text) == (122880, 30720)
+
+
+def test_cpu_percent_from_two_proc_stat_samples():
+    before = parse_cpu_stat("cpu  100 0 100 700 100 0 0 0 0 0\ncpu0 1 2 3 4\n")
+    after = parse_cpu_stat("cpu  160 0 140 800 100 0 0 0 0 0\n")
+    assert before == (200, 1000) and after == (300, 1200)
+    assert cpu_percent(before, after) == 50.0
+    assert cpu_percent(after, after) is None
 
 
 def test_parse_claude_status_logged_in_drops_identity_fields():

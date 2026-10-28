@@ -18,6 +18,8 @@ class NodeView:
     labels: tuple[str, ...]
     gpu_util: list
     gpu_mem: list
+    cpu_pct: float | None
+    cpu_cores: int | None
     mem_used_mb: int | None
     mem_total_mb: int | None
     disk_used_gb: float | None
@@ -84,6 +86,7 @@ def _node_view(node: Node, now: datetime, offline_after: int) -> NodeView:
         last_seen_at=node.last_seen_at, labels=tuple(node.labels or ()),
         gpu_util=[g.get("util_pct") for g in m.get("gpus", [])],
         gpu_mem=[(g.get("mem_used_mb"), g.get("mem_total_mb")) for g in m.get("gpus", []) if g.get("mem_total_mb")],
+        cpu_pct=m.get("cpu_pct"), cpu_cores=m.get("cpu_cores"),
         mem_used_mb=m.get("mem_used_mb"), mem_total_mb=m.get("mem_total_mb"),
         disk_used_gb=m.get("disk_used_gb"), disk_total_gb=m.get("disk_total_gb"),
         claude=login_badge(logins.get("claude")), codex=login_badge(logins.get("codex")),

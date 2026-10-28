@@ -24,6 +24,8 @@ class GpuProc(_Frozen):
 
 class Metrics(_Frozen):
     load: list[float] = Field(default_factory=list, max_length=3)
+    cpu_pct: float | None = Field(default=None, ge=0, le=100)
+    cpu_cores: int | None = Field(default=None, ge=1, le=4096)
     mem_total_mb: int | None = Field(default=None, ge=0)
     mem_used_mb: int | None = Field(default=None, ge=0)
     disk_total_gb: float | None = Field(default=None, ge=0)

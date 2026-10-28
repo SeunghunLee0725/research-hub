@@ -4,12 +4,15 @@ from fastapi.testclient import TestClient
 from hub.db.models import Node, QuotaSnapshot
 from hub.main import create_app
 from hub.services.nodes import create_node
+from tests.conftest import ADMIN_PASSWORD
 
 HEARTBEAT = {
     "agent_version": "0.1.0",
     "hostname": "spark-a",
     "metrics": {
         "load": [1.0, 0.5, 0.2],
+        "cpu_pct": 37.4,
+        "cpu_cores": 20,
         "mem_total_mb": 120000,
         "mem_used_mb": 30000,
         "disk_total_gb": 3700,
@@ -49,6 +52,10 @@ def test_heartbeat_updates_node(client, db, node_token):
     db.refresh(node)
     assert node.last_seen_at is not None
     assert node.metrics["gpus"][0]["util_pct"] == 61
+    assert (node.metrics["cpu_pct"], node.metrics["cpu_cores"]) == (37.4, 20)
+    client.post("/login", data={"password": ADMIN_PASSWORD})
+    page = client.get("/").text
+    assert "CPU" in page and "37%" in page and "20코어" in page
     assert node.agent_version == "0.1.0"
 
 

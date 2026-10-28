@@ -20,7 +20,7 @@ def test_login_badge():
 
 def test_overview_collects_nodes_quota_and_projects(db):
     online = Node(name="spark-a", token_hash="a" * 64, labels=["gpu"], last_seen_at=NOW,
-                  metrics={"gpus": [{"name": "GB10", "util_pct": 70}]},
+                  metrics={"gpus": [{"name": "GB10", "util_pct": 70}], "cpu_pct": 37.4, "cpu_cores": 20},
                   logins={"claude": {"logged_in": True}, "codex": {"logged_in": False}})
     stale = Node(name="spark-b", token_hash="b" * 64, last_seen_at=NOW - timedelta(minutes=5))
     project = Project(slug="plasma-kg", name="플라즈마 KG", workdir="/w")
@@ -42,6 +42,7 @@ def test_overview_collects_nodes_quota_and_projects(db):
     assert states == {"spark-a": "online", "spark-b": "offline"}
     a = next(n for n in view.nodes if n.name == "spark-a")
     assert a.gpu_util == [70] and a.claude == "ok" and a.codex == "logged_out"
+    assert (a.cpu_pct, a.cpu_cores) == (37.4, 20)
     assert [q.provider for q in view.quotas] == ["claude"]
     assert view.quotas[0].windows[0]["used_percent"] == 42.0
     (p,) = view.projects
